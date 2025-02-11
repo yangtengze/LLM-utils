@@ -1,0 +1,18 @@
+# Ollama 服务配置
+ollama:
+  endpoint: "http://localhost:11434"  # Ollama 服务地址
+  timeout: 300                        # 请求超时时间（秒）
+  default_model: "deepseek-r1:7b"             # 默认使用的模型
+  models:                             # 可用模型列表
+    - deepseek-r1:1.5b
+    - deepseek-r1:7b
+    - deepseek-r1:8b
+    - deepseek-r1:32b
+    - deepseek-r1:70b
+  temperature: 0.7                    # 生成温度
+  max_tokens: 2048                    # 最大生成 token 数
+  stream: true                        # 是否启用流式响应
+  retry_policy:                       # 重试策略
+    max_retries: 3
+    delay: 2                          # 重试延迟（秒）
+

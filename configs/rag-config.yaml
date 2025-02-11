@@ -1,0 +1,25 @@
+# RAG 配置
+rag:
+  document_loader:                    # 文档加载配置
+    supported_formats:                # 支持的文档格式
+      - pdf
+      - txt
+      - md
+      - docx
+      - csv
+    chunk_size: 1000                  # 文档分块大小（字符数）
+    chunk_overlap: 200                # 分块重叠大小（字符数）
+  
+  embedding_model:                    # 嵌入模型配置
+    name: "quentinz/bge-large-zh-v1.5"         # HuggingFace 模型名称
+    device: "cuda"                     # 运行设备（cpu/cuda）
+    normalize_embeddings: true        # 是否归一化嵌入向量
+  
+  vector_store:                       # 向量存储配置
+    type: "faiss"                     # 向量数据库类型（faiss/chroma）
+    index_path: "data/vec_db_store"   # 索引存储路径
+    similarity_metric: "cosine"       # 相似度计算方式（cosine/l2）
+  
+  retrieval:                          # 检索配置
+    top_k: 5                          # 返回的文档数量
+    score_threshold: 0.6              # 相似度分数阈值

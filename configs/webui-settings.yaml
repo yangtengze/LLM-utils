@@ -1,0 +1,21 @@
+# WebUI 配置
+webui:
+  server:                             # 后端服务配置
+    host: "0.0.0.0"                   # 监听地址
+    port: 3916                        # 监听端口
+    debug: false                      # 是否启用调试模式
+  
+  frontend:                           # 前端配置
+    theme: "light"                     # 主题（light/dark）
+    layout:                           # 布局设置
+      sidebar_width: 300              # 侧边栏宽度（像素）
+      chat_window_height: 600         # 聊天窗口高度（像素）
+  
+  features:                           # 功能开关
+    enable_streaming: true            # 是否启用流式响应
+    enable_document_upload: true      # 是否启用文档上传
+    enable_agent_debug: false         # 是否启用 Agent 调试面板
+  
+  security:                           # 安全配置
+    enable_auth: false                # 是否启用身份验证
+    api_key: ""                       # API 密钥（可选）
