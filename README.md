@@ -1,6 +1,9 @@
 # LLM-utils
 This is an utils based on LLMs such as RAG、Agent tools、WebUI etc. 
 
+> note 
+> continue updating 
+> if you are interested in this project, contact me at *yangtengze@163.com* to contribute
 
 ```dir
 LLM-utils/
