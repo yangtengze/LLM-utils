@@ -1,9 +1,14 @@
 from document_loader import csvLoader, docxLoader, mdLoader, pdfLoader, txtLoader
 from typing import List, Dict, Optional
-
 from sklearn.feature_extraction.text import TfidfVectorizer
-
+import yaml
+from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+import torch
+from tqdm import tqdm
+from FlagEmbedding import FlagModel
 import numpy as np
 
 class Rag:
@@ -14,9 +19,25 @@ class Rag:
         - 使用 TF-IDF 向量化器进行文档检索
         """
         self.docs: List[str] = []  # 存储加载的文档内容
-        self.vectorizer = TfidfVectorizer()  # 文本向量化器
+        self.config = self.load_config("rag-config")
+
+        # self.vectorizer = TfidfVectorizer()  # 文本向量化器
+        # self.embedding_model = self.config['rag']['embedding_model']['name']
+        self.embedding_model = FlagModel(self.config['rag']['embedding_model']['name'], 
+                  query_instruction_for_retrieval="为这个句子生成表示以用于检索相关文章：",
+                  use_fp16=True)
+        self.deivce = self.config['rag']['embedding_model']['device']
+        self.embedding_model.to(torch.device(self.deivce))
+
+        # self.reranker_model = 
+
         self.doc_vectors = None  # 文档向量
 
+    def load_config(config_name: str):
+        config_path = Path("configs") / f"{config_name}.yaml"
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+        
     def load_documents(self, file_paths: List[str]) -> None:
         """
         加载多种格式的文档
@@ -41,7 +62,7 @@ class Rag:
 
         # 向量化文档
         if self.docs:
-            self.doc_vectors = self.vectorizer.fit_transform(self.docs)
+            self.doc_vectors = self.embedding_model.encode(self.docs)
 
     def generate_docs(self, vec_query: str) -> List[str]:
         """
@@ -53,7 +74,7 @@ class Rag:
             raise ValueError("未加载文档，请先调用 load_documents 方法")
         
         # 将查询文本向量化
-        query_vector = self.vectorizer.transform([vec_query])
+        query_vector = self.embedding_model.encode([vec_query])
         
         # 计算余弦相似度
         similarities = cosine_similarity(query_vector, self.doc_vectors).flatten()
