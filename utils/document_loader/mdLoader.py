@@ -104,17 +104,3 @@ class MDLoader:
             "link_count": len(self.links),
             "image_count": len(self.images)
         }
-
-# 示例用法
-if __name__ == "__main__":
-    loader = MDLoader("example.md")
-    
-    print("元数据:", loader.metadata)
-    print("主标题:", loader.titles[0]['text'] if loader.titles else None)
-    print("第一个链接:", loader.links[0] if loader.links else None)
-    
-    print("\n摘要信息:")
-    print(loader.summary())
-    
-    # print("\nHTML 转换:")
-    # print(loader.to_html())

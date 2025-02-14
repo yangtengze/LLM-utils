@@ -1,15 +1,15 @@
 from document_loader import csvLoader, docxLoader, mdLoader, pdfLoader, txtLoader
 from typing import List, Dict, Optional
-from sklearn.feature_extraction.text import TfidfVectorizer
 import yaml
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-
+import requests
 import torch
 from tqdm import tqdm
 from FlagEmbedding import FlagModel
 import numpy as np
+import json
 
 class Rag:
     def __init__(self):
@@ -28,11 +28,8 @@ class Rag:
                   use_fp16=True)
         self.deivce = self.config['rag']['embedding_model']['device']
         self.embedding_model.to(torch.device(self.deivce))
-
         # self.reranker_model = 
-
         self.doc_vectors = None  # 文档向量
-
     def load_config(config_name: str):
         config_path = Path("configs") / f"{config_name}.yaml"
         with open(config_path, "r", encoding="utf-8") as f:
@@ -58,8 +55,8 @@ class Rag:
                 raise ValueError(f"不支持的文件格式: {file_path}")
             
             content = loader.load(file_path)
-            self.docs.extend(content)  # 假设 loader.load 返回一个字符串列表
-
+            # self.docs.extend(content)  # 假设 loader.load 返回一个字符串列表
+            self.docs.append(content)
         # 向量化文档
         if self.docs:
             self.doc_vectors = self.embedding_model.encode(self.docs)
@@ -75,10 +72,8 @@ class Rag:
         
         # 将查询文本向量化
         query_vector = self.embedding_model.encode([vec_query])
-        
         # 计算余弦相似度
         similarities = cosine_similarity(query_vector, self.doc_vectors).flatten()
-        
         # 按相似度排序并返回相关文档
         sorted_indices = np.argsort(similarities)[::-1]
         return [self.docs[i] for i in sorted_indices]
@@ -103,7 +98,6 @@ class Rag:
         :return: 生成的响应文本
         """
         prompt = self.generate_prompt(query)
-        
         # 调用生成模型（这里用伪代码表示）
         response = self._call_language_model(prompt)
         return response
@@ -118,7 +112,20 @@ class Rag:
         # 例如：
         # response = openai.Completion.create(prompt=prompt, ...)
         # return response.choices[0].text
-        return f"基于以下信息生成响应:\n{prompt}"
+        ollama_config = self.load_config('ollama')
+        self.llm_model = ollama_config['ollama']['default_model']
+        data = {
+            "model": self.llm_model,
+            "prompt": prompt,
+            "stream": ollama_config['ollama']['stream'],
+            "options": {
+                "temperature": ollama_config['ollama']['temperature']
+            },
+        }
+        url = ollama_config['ollama']['endpoint'] + '/api/generate'
+        response = requests.post(url, json=json.dumps(data))
+        return response
+        # return f"基于以下信息生成响应:\n{prompt}"
 
 # # 示例用法
 # if __name__ == "__main__":
