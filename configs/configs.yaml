@@ -1,0 +1,67 @@
+# Ollama 服务配置
+ollama:
+  endpoint: "http://localhost:11434"  # Ollama 服务地址
+  timeout: 300                        # 请求超时时间（秒）
+  default_model: "deepseek-r1:7b"             # 默认使用的模型
+  models:                             # 可用模型列表
+    - deepseek-r1:1.5b
+    - deepseek-r1:7b
+    - deepseek-r1:8b
+    - deepseek-r1:32b
+    - deepseek-r1:70b
+  temperature: 0.7                    # 生成温度
+  max_tokens: 2048                    # 最大生成 token 数
+  stream: true                        # 是否启用流式响应
+  retry_policy:                       # 重试策略
+    max_retries: 3
+    delay: 2                          # 重试延迟（秒）
+
+# RAG 配置
+rag:
+  document_loader:                    # 文档加载配置
+    supported_formats:                # 支持的文档格式
+      - pdf
+      - txt
+      - md
+      - docx
+      - csv
+    chunk_size: 1000                  # 文档分块大小（字符数）
+    chunk_overlap: 200                # 分块重叠大小（字符数）
+  
+  embedding_model:                    # 嵌入模型配置
+    name: "C:/Users/yangt/Desktop/github/rag对话/bge-large-zh-v1.5"         # HuggingFace 模型名称
+    # name: "quentinz/bge-large-zh-v1.5"         # HuggingFace 模型名称
+    device: ["cuda"]                     # 运行设备（cpu/cuda）
+    normalize_embeddings: true        # 是否归一化嵌入向量
+  
+  vector_store:                       # 向量存储配置
+    type: "faiss"                     # 向量数据库类型（faiss/chroma）
+    index_path: "data/vec_db_store"   # 索引存储路径
+    similarity_metric: "cosine"       # 相似度计算方式（cosine/l2）
+  
+  retrieval:                          # 检索配置
+    top_k: 5                          # 返回的文档数量
+    score_threshold: 0.6              # 相似度分数阈值
+
+
+# WebUI 配置
+webui:
+  server:                             # 后端服务配置
+    host: "0.0.0.0"                   # 监听地址
+    port: 3916                        # 监听端口
+    debug: false                      # 是否启用调试模式
+  
+  frontend:                           # 前端配置
+    theme: "light"                     # 主题（light/dark）
+    layout:                           # 布局设置
+      sidebar_width: 300              # 侧边栏宽度（像素）
+      chat_window_height: 600         # 聊天窗口高度（像素）
+  
+  features:                           # 功能开关
+    enable_streaming: true            # 是否启用流式响应
+    enable_document_upload: true      # 是否启用文档上传
+    enable_agent_debug: false         # 是否启用 Agent 调试面板
+  
+  security:                           # 安全配置
+    enable_auth: false                # 是否启用身份验证
+    api_key: ""                       # API 密钥（可选）

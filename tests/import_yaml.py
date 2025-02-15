@@ -7,5 +7,5 @@ def load_config(config_name: str):
         return yaml.safe_load(f)
 
 # 示例：加载 Ollama 配置
-ollama_config = load_config("ollama")
+ollama_config = load_config("configs")
 print(ollama_config["ollama"]["default_model"])
