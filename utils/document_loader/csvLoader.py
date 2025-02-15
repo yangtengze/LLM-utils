@@ -1,4 +1,3 @@
-import numpy as np
 import csv
 
 class CSVLoader:
@@ -10,4 +9,4 @@ class CSVLoader:
             csv_reader = csv.DictReader(file)
             for row in csv_reader:
                 documents.append(row)
-        return np.array(documents)
+        return documents

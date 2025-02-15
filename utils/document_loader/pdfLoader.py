@@ -129,4 +129,4 @@ class PDFLoader:
                 buffer = ''
         if buffer:
             paragraphs.append(buffer)
-        return lines,paragraphs
+        return paragraphs

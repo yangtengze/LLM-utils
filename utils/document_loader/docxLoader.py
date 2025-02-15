@@ -1,5 +1,4 @@
 from docx import Document
-import numpy as np
 class DocxLoader:
     def __init__(self):
         pass
@@ -10,4 +9,4 @@ class DocxLoader:
             # print(para.text)
             data.append(para.text)
         # return doc.paragraphs
-        return np.array(data)
+        return data
