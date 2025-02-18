@@ -41,7 +41,7 @@ rag:
     similarity_metric: "cosine"       # 相似度计算方式（cosine/l2）
   
   retrieval:                          # 检索配置
-    top_k: 5                          # 返回的文档数量
+    top_k: 3                          # 返回的文档数量
     score_threshold: 0.6              # 相似度分数阈值
 
 

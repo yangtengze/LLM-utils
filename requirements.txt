@@ -1,0 +1,35 @@
+# LLM & Embeddings
+FlagEmbedding>=1.1.6
+requests>=2.31.0
+torch>=2.1.0           # PyTorch core
+torchvision>=0.16.0    # PyTorch vision utilities
+torchaudio>=2.1.0      # PyTorch audio utilities
+
+# Document Processing
+python-docx>=0.8.11    # for docx files
+PyPDF2>=3.0.0         # for pdf files
+pandas>=2.0.0         # for csv files
+markdown>=3.5.1       # for markdown files
+
+# Data Processing & ML
+numpy>=1.24.0
+tqdm>=4.65.0
+PyYAML>=6.0.1
+
+# Web Framework
+flask>=2.0.0
+flask-cors>=4.0.0
+
+# Utilities
+python-dotenv>=1.0.0   # for environment variables
+pathlib>=1.0.1         # for path handling
+logging>=0.5.1.2       # for logging
+dataclasses>=0.6       # for data classes
+
+# Testing
+pytest>=7.4.0          # for testing
+pytest-cov>=4.1.0      # for test coverage
+
+# Optional but recommended
+colorama>=0.4.6        # for colored terminal output
+rich>=13.7.0           # for rich terminal output
