@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Raw Chat{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-sidebar">
+    </div>
+    <div class="chat-main">
+        <div class="chat-header">
+            <h2>Raw Chat</h2>
+            <p class="chat-description">直接与大语言模型对话，体验原始的对话能力</p>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="welcome-message">
+                <i class="fas fa-robot"></i>
+                <h3>欢迎使用 Raw Chat</h3>
+                <p>这是一个简单的对话模式，直接与语言模型交互。</p>
+                <p>您可以开始输入任何问题...</p>
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <div class="input-group">
+                <textarea 
+                    class="message-input" 
+                    id="message-input"
+                    placeholder="输入您的问题..."
+                    rows="3"
+                ></textarea>
+                <button class="send-button" id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                    发送
+                </button>
+            </div>
+            <div class="input-tools">
+                <button class="tool-button" id="clear-button">
+                    <i class="fas fa-trash-alt"></i>
+                    清空对话
+                </button>
+                <span class="model-info">
+                    <i class="fas fa-microchip"></i>
+                    模型: deepseek-r1:1.5b
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+const messageInput = document.getElementById('message-input');
+const sendButton = document.getElementById('send-button');
+const chatMessages = document.getElementById('chat-messages');
+const clearButton = document.getElementById('clear-button');
+
+// 发送消息
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    // 添加用户消息到界面
+    addMessage(message, 'user');
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+
+    // 显示加载动画
+    const loadingMessage = addLoadingMessage();
+
+    try {
+        const response = await fetch('/api/chat/raw', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        // 移除加载动画
+        loadingMessage.remove();
+        
+        if (data.status === 'success') {
+            addMessage(data.response, 'assistant');
+        } else {
+            addMessage('发送消息失败：' + data.message, 'error');
+        }
+    } catch (error) {
+        // 移除加载动画
+        loadingMessage.remove();
+        console.error('发送消息失败:', error);
+        addMessage('发送消息失败，请重试', 'error');
+    }
+}
+
+// 添加消息到界面
+function addMessage(content, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}-message`;
+    
+    // 添加图标
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'message-icon';
+    iconDiv.innerHTML = type === 'user' ? 
+        '<i class="fas fa-user"></i>' : 
+        '<i class="fas fa-robot"></i>';
+    messageDiv.appendChild(iconDiv);
+    
+    // 添加内容
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.textContent = content;
+    messageDiv.appendChild(contentDiv);
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return messageDiv;
+}
+
+// 添加加载动画
+function addLoadingMessage() {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant-message loading';
+    loadingDiv.innerHTML = `
+        <div class="message-icon">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="message-content">
+            <div class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+    chatMessages.appendChild(loadingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return loadingDiv;
+}
+
+// 清空对话
+function clearChat() {
+    chatMessages.innerHTML = `
+        <div class="welcome-message">
+            <i class="fas fa-robot"></i>
+            <h3>欢迎使用 Raw Chat</h3>
+            <p>这是一个简单的对话模式，直接与语言模型交互。</p>
+            <p>您可以开始输入任何问题...</p>
+        </div>
+    `;
+}
+
+// 自动调整输入框高度
+function autoResizeTextarea() {
+    messageInput.style.height = 'auto';
+    messageInput.style.height = messageInput.scrollHeight + 'px';
+}
+
+// 事件监听
+sendButton.addEventListener('click', sendMessage);
+clearButton.addEventListener('click', clearChat);
+
+messageInput.addEventListener('input', autoResizeTextarea);
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

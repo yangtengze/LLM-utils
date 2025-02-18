@@ -319,13 +319,13 @@ class Rag:
             print(error_msg)
             return error_msg
 
-# # 示例用法
-# if __name__ == "__main__":
-#     rag = Rag()
-#     # 加载文档
-#     rag.load_documents(rag.files)
+# 示例用法
+if __name__ == "__main__":
+    rag = Rag()
+    # 加载文档
+    rag.load_documents(rag.files)
     
-#     # 生成响应
-#     query = "你是谁啊？你叫什么？"
-#     response = rag.generate_response(query)
-#     print(response)
+    # 生成响应
+    query = "你是谁啊？你叫什么？"
+    response = rag.generate_response(query)
+    print(response)

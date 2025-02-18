@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LLM Utils{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('index') }}" class="brand-link">LLM Utils</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('chat.raw_chat') }}" class="nav-item">Raw Chat</a>
+            <a href="{{ url_for('chat.rag_chat') }}" class="nav-item">RAG Chat</a>
+            <a href="{{ url_for('chat.agent_chat') }}" class="nav-item">Agent Chat</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <span class="author">Created by <a href="https://github.com/yangtengze" target="_blank">yangtengze</a></span>
+            <a href="https://github.com/yangtengze/LLM-utils" class="github-link" target="_blank">
+                <i class="fab fa-github"></i>
+            </a>
+        </div>
+    </footer>
+
+    <!-- Font Awesome for GitHub icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

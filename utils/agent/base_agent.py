@@ -7,6 +7,7 @@ import time
 import requests
 import json
 import re
+import os
 
 class BaseAgent(ABC):
     """
@@ -24,10 +25,12 @@ class BaseAgent(ABC):
 你是一个智能助手，配备了以下工具：
 {tools_description}
 
-工具使用说明：
-1. 使用工具时，请用以下格式：
+
+ ！！！！注意！！！！
+《工具使用说明》：
+一定要按要求来
+1. 使用工具时，请务必用以下格式：
    <tool name="工具名称" params={{"参数名": "参数值"}} />
-   
 2. 例如：
    - 无参数: <tool name="get_local_ip" />
    - 带参数: <tool name="search_documents" params={{"query": "搜索内容", "top_k": 5}} />
@@ -45,8 +48,7 @@ class BaseAgent(ABC):
    - 如果需要，选择最合适的工具
 
 2. 行动：
-   如果需要使用工具，请使用如下格式：
-   <tool>工具名称</tool>
+   如果需要使用工具，请务必按照《工具使用说明》来
 
 3. 观察：
    - 如果使用了工具，分析工具返回的结果
@@ -59,6 +61,49 @@ class BaseAgent(ABC):
 
 请用 Markdown 格式回复。
 """
+
+    DEFAULT_PROMPT_TEMPLATE = """
+    # 智能助手操作指南
+
+    ## 介绍
+    您好，您是一名多功能智能助手，能够理解用户需求并利用一系列工具来提供帮助。
+
+    ## 工具箱
+    以下是您可用的工具列表及其简要描述：
+    {tools_description}
+
+    ## 使用工具的规则
+    - **无参数工具**：使用格式 `<tool name="工具名称" />`
+    - **带参数工具**：使用格式 `<tool name="工具名称" params="{{参数名: 参数值, 参数名: 参数值, ...}}" />`
+    - **示例**：
+    - 无参数：`<tool name="get_local_ip" />`
+    - 带参数：`<tool name="search_documents" params="{{query: '关键词', topk: 10}}" />`
+
+    ## 对话历史
+    在此查看与用户的对话历史记录，以便更好地理解上下文：
+    {chat_history}
+
+    ## 当前问题
+    用户提出的问题是：
+    {query}
+
+    ## 执行步骤
+    1. **理解**：仔细阅读用户的问题，确保完全理解其意图。
+    2. **决策**：根据问题的性质，决定是否需要使用工具来获取答案。
+    3. **行动**：
+    - 如果需要使用工具，请遵循上述规则进行操作。
+    - 如果不需要工具，直接利用您的知识库回答。
+    4. **评估**：
+    - 如果使用了工具，检查返回结果是否满足需求。
+    - 如果未使用工具，确保您的回答准确无误。
+    5. **回复**：
+    - 使用清晰、准确的语言回答用户。
+    - 如果使用了工具，请提供对结果的解释。
+    - 根据情况，可能需要提供额外的信息或建议。
+
+    请确保您的回答格式规范，使用Markdown进行排版。
+    """
+
 
     def __init__(self, config: Dict[str, Any]):
         """
@@ -76,7 +121,7 @@ class BaseAgent(ABC):
         """
         self.config = config
         self.tool_registry = ToolRegistry()
-        self.history: List[Dict[str, Any]] = []  # 执行历史
+        self.history: List[Dict[str, str]] = []  # 修改类型注解
         self.memory: Dict[str, Any] = {}  # 代理记忆/状态存储
         self.max_history_length = config.get('max_history_length', 100)
         self.llm_config = config.get('llm', {
@@ -105,7 +150,7 @@ class BaseAgent(ABC):
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(
-                    log_path / f'agent_{time.strftime("%Y%m%d")}.log',
+                    log_path / f'log-{time.strftime("%Y%m%d")}.log',
                     encoding='utf-8'
                 ),
                 logging.StreamHandler()
@@ -117,6 +162,20 @@ class BaseAgent(ABC):
         """加载初始状态"""
         state_path = self.config.get('state_path')
         if state_path:
+            # 确保目录存在
+            state_dir = os.path.dirname(state_path)
+            if not os.path.exists(state_dir):
+                os.makedirs(state_dir)
+            
+            # 如果文件不存在，创建一个空的状态文件
+            if not os.path.exists(state_path):
+                initial_state = {
+                    'history': [],
+                    'memory': {}
+                }
+                with open(state_path, 'w', encoding='utf-8') as f:
+                    json.dump(initial_state, f, ensure_ascii=False, indent=2)
+            
             self.load_state(state_path)
     
     def register_tool(self, tool: Union[Tool, List[Tool]]) -> None:
@@ -172,19 +231,23 @@ class BaseAgent(ABC):
             })
             raise
     
-    def add_to_history(self, entry: Dict[str, Any]) -> None:
+    def add_to_history(self, message: str, role: str = 'user') -> None:
         """
-        添加执行记录到历史
-        :param entry: 历史记录条目
+        添加消息到历史记录
+        :param message: 消息内容
+        :param role: 角色(user/assistant)
         """
-        if 'timestamp' not in entry:
-            entry['timestamp'] = time.time()
+        self.history.append({
+            'role': role,
+            'content': message
+        })
         
-        self.history.append(entry)
-        if len(self.history) > self.max_history_length:
-            self.history = self.history[-self.max_history_length:]
+        # 如果超出最大长度，移除最早的消息
+        while len(self.history) > self.max_history_length:
+            self.history.pop(0)
         
-        self._auto_save_state()
+        # 保存状态
+        self.save_state()
     
     def _auto_save_state(self) -> None:
         """自动保存状态"""
@@ -220,32 +283,28 @@ class BaseAgent(ABC):
                           if h.get('timestamp', 0) >= before_timestamp]
         self.logger.info(f"Cleared history before {before_timestamp}")
     
-    def generate_prompt(self, query: str, include_history: bool = True) -> str:
+    def format_chat_history(self) -> str:
+        """
+        格式化对话历史
+        :return: 格式化后的历史记录
+        """
+        formatted_history = []
+        for msg in self.history:
+            formatted_history.append(
+                {f"{msg['role'].upper()}: {msg['content']}"}
+            )
+        formatted_history_str = "\n".join([str(msg) for msg in formatted_history])
+        return formatted_history_str
+    
+    def generate_prompt(self, query: str) -> str:
         """
         生成完整的prompt
         :param query: 用户查询
-        :param include_history: 是否包含历史记录
         :return: 格式化后的prompt
         """
-        # 获取可用工具描述
-        tools = self.get_available_tools()
-        tools_description = "\n".join([
-            f"- {tool['name']}: {tool['description']}"
-            for tool in tools
-        ])
+        tools_description = self.get_tools_description()
+        chat_history = self.format_chat_history()
         
-        # 获取历史对话记录
-        chat_history = ""
-        if include_history:
-            history = self.get_history(last_n=5, filter_type='query')  # 最近5条查询历史
-            if history:
-                chat_history = "\n".join([
-                    f"用户: {h['content']}\n"
-                    f"助手: {h.get('response', '')}"  # 移除 'None' 显示
-                    for h in history
-                ])
-        
-        # 格式化prompt
         prompt = self.prompt_template.format(
             tools_description=tools_description,
             chat_history=chat_history,
@@ -301,40 +360,34 @@ class BaseAgent(ABC):
             self.logger.error(f"LLM调用出错: {str(e)}")
             raise
 
-    def run(self, query: str) -> Any:
+    def run(self, query: str) -> str:
         """
-        运行agent处理查询
-        :param query: 用户查询
-        :return: 处理结果
+        处理用户查询
+        :param query: 用户输入
+        :return: 回复内容
         """
-        # 记录查询
-        self.add_to_history({
-            'type': 'query',
-            'content': query,
-            'timestamp': time.time()
-        })
+        # 添加用户消息到历史
+        self.add_to_history(query, 'user')
+        
+        # 生成prompt
+        prompt = self.generate_prompt(query)
         
         try:
-            # 生成prompt
-            prompt = self.generate_prompt(query)
-            self.logger.debug(f"Generated prompt: \n{prompt}\n")
-            
-            # 调用LLM获取初始响应
+            # 调用LLM
             response = self._call_llm(prompt)
-            
+            # self.logger.info(f'LLM prompt: {prompt}')
             # 处理工具调用
-            final_response = self._process_tool_calls(response)
+            processed_response = self._process_tool_calls(response)
             
-            # 更新历史记录
-            self.update_last_response(final_response)
+            # 添加助手回复到历史
+            self.add_to_history(processed_response, 'assistant')
             
-            return final_response
+            return processed_response
             
         except Exception as e:
-            error_msg = f"处理失败: {str(e)}"
+            error_msg = f"处理查询时出错: {str(e)}"
             self.logger.error(error_msg)
-            self.update_last_response(error_msg)
-            raise
+            return error_msg
 
     def _process_tool_calls(self, response: str) -> str:
         """处理响应中的工具调用"""
@@ -414,29 +467,81 @@ class BaseAgent(ABC):
         """
         return self.memory.get(key, default)
     
-    def save_state(self, path: str) -> None:
+    def save_state(self, path: str = None) -> None:
         """
         保存代理状态到文件
-        :param path: 保存路径
+        :param path: 状态文件路径，如果为None则使用配置中的路径
         """
-        import json
-        state = {
-            'history': self.history,
-            'memory': self.memory
-        }
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
+        if path is None:
+            path = self.config.get('state_path')
+            if not path:
+                self.logger.warning("No state path configured, skipping state save")
+                return
+
+        try:
+            # 确保目录存在
+            state_dir = os.path.dirname(path)
+            if not os.path.exists(state_dir):
+                os.makedirs(state_dir)
+
+            # 保存状态
+            state = {
+                'history': self.history,
+                'memory': self.memory
+            }
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+            
+            self.logger.debug(f"State saved to {path}")
+        except Exception as e:
+            self.logger.error(f"Failed to save state: {str(e)}")
     
     def load_state(self, path: str) -> None:
         """
         从文件加载代理状态
         :param path: 状态文件路径
         """
-        import json
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 state = json.load(f)
                 self.history = state.get('history', [])
                 self.memory = state.get('memory', {})
         except FileNotFoundError:
-            print(f"State file not found: {path}") 
+            self.logger.warning(f"State file not found: {path}")
+            self.history = []
+            self.memory = {}
+        except json.JSONDecodeError:
+            self.logger.error(f"Invalid JSON in state file: {path}")
+            self.history = []
+            self.memory = {}
+            # 重新创建有效的状态文件
+            self.save_state(path) 
+
+    def get_tools_description(self) -> str:
+        """
+        获取所有可用工具的描述
+        :return: 格式化的工具描述字符串
+        """
+        tools = self.get_available_tools()
+        
+        # 生成工具描述
+        descriptions = []
+        for tool in tools:
+            desc = f"- {tool['name']}: {tool['description']}"
+            # 如果工具有参数，添加参数说明
+            if 'parameters' in tool:
+                params_desc = []
+                for param_name, param_info in tool['parameters'].items():
+                    param_desc = f"  - {param_name}"
+                    if param_info.get('required', False):
+                        param_desc += " (必填)"
+                    if 'default' in param_info:
+                        param_desc += f" (默认值: {param_info['default']})"
+                    if 'description' in param_info:
+                        param_desc += f": {param_info['description']}"
+                    params_desc.append(param_desc)
+                if params_desc:
+                    desc += "\n  参数:\n" + "\n".join(params_desc)
+            descriptions.append(desc)
+        
+        return "\n".join(descriptions) 

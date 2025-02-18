@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}RAG Chat{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-sidebar">
+        <h3>已加载文档</h3>
+        <div id="documents-list">
+            <!-- 文档列表将通过 JavaScript 动态加载 -->
+        </div>
+    </div>
+    
+    <div class="chat-main">
+        <div class="chat-messages" id="chat-messages">
+            <!-- 消息将通过 JavaScript 动态添加 -->
+        </div>
+        
+        <div class="chat-input">x
+            <div class="input-group">
+                <textarea 
+                    class="message-input" 
+                    id="message-input"
+                    placeholder="输入消息..."
+                    rows="3"
+                ></textarea>
+                <button class="send-button" id="send-button">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+const messageInput = document.getElementById('message-input');
+const sendButton = document.getElementById('send-button');
+const chatMessages = document.getElementById('chat-messages');
+const documentsList = document.getElementById('documents-list');
+
+// 加载文档列表
+async function loadDocuments() {
+    try {
+        const response = await fetch('/api/documents');
+        const docs = await response.json();
+        documentsList.innerHTML = docs.map(doc => `
+            <div class="document-item">
+                <p>${doc.file_path}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('加载文档失败:', error);
+    }
+}
+
+// 发送消息
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    // 添加用户消息到界面
+    addMessage(message, 'user');
+    messageInput.value = '';
+
+    try {
+        const response = await fetch('/api/chat/rag', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+            addMessage(data.response, 'assistant');
+        } else {
+            addMessage('发送消息失败：' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('发送消息失败:', error);
+        addMessage('发送消息失败，请重试', 'error');
+    }
+}
+
+// 添加消息到界面
+function addMessage(content, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}-message`;
+    messageDiv.textContent = content;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 事件监听
+sendButton.addEventListener('click', sendMessage);
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// 初始化
+loadDocuments();
+</script>
+{% endblock %}
+{% endblock %} 
