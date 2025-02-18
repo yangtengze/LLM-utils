@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Agent Chat{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-sidebar">
+        <h3>可用工具</h3>
+        <div id="tools-list">
+            <!-- 工具列表将通过 JavaScript 动态加载 -->
+        </div>
+    </div>
+    
+    <div class="chat-main">
+        <div class="chat-messages" id="chat-messages">
+            <!-- 消息将通过 JavaScript 动态添加 -->
+        </div>
+        
+        <div class="chat-input">
+            <div class="input-group">
+                <textarea 
+                    class="message-input" 
+                    id="message-input"
+                    placeholder="输入消息..."
+                    rows="3"
+                ></textarea>
+                <button class="send-button" id="send-button">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+const messageInput = document.getElementById('message-input');
+const sendButton = document.getElementById('send-button');
+const chatMessages = document.getElementById('chat-messages');
+const toolsList = document.getElementById('tools-list');
+
+// 加载可用工具
+async function loadTools() {
+    try {
+        const response = await fetch('/api/tools');
+        const tools = await response.json();
+        toolsList.innerHTML = tools.map(tool => `
+            <div class="tool-item">
+                <h4>${tool.name}</h4>
+                <p>${tool.description}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('加载工具失败:', error);
+    }
+}
+
+// 发送消息
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    // 添加用户消息到界面
+    addMessage(message, 'user');
+    messageInput.value = '';
+
+    try {
+        const response = await fetch('/api/chat/agent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        addMessage(data.response, 'assistant');
+    } catch (error) {
+        console.error('发送消息失败:', error);
+        addMessage('发送消息失败，请重试', 'error');
+    }
+}
+
+// 添加消息到界面
+function addMessage(content, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}-message`;
+    messageDiv.textContent = content;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// 事件监听
+sendButton.addEventListener('click', sendMessage);
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// 初始化
+loadTools();
+</script>
+{% endblock %}
+{% endblock %}

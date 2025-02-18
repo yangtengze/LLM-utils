@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}LLM Utils - 主页{% endblock %}
+
+{% block content %}
+<div class="background-slideshow">
+    <div class="slide fade">
+        <img src="{{ url_for('static', filename='images/1.jpg') }}" alt="Background 1">
+    </div>
+    <div class="slide fade">
+        <img src="{{ url_for('static', filename='images/2.jpg') }}" alt="Background 2">
+    </div>
+    <div class="slide fade">
+        <img src="{{ url_for('static', filename='images/3.jpg') }}" alt="Background 3">
+    </div>
+    <div class="slide fade">
+        <img src="{{ url_for('static', filename='images/4.jpg') }}" alt="Background 4">
+    </div>
+</div>
+
+<div class="welcome-container">
+    <div class="content-wrapper">
+        <h1>欢迎使用 LLM Utils</h1>
+        <div class="features">
+            <div class="feature-card">
+                <h2>Raw Chat</h2>
+                <p>直接与大语言模型对话</p>
+                <a href="{{ url_for('chat.raw_chat') }}" class="feature-link">开始对话</a>
+            </div>
+            <div class="feature-card">
+                <h2>RAG Chat</h2>
+                <p>基于文档的智能问答</p>
+                <a href="{{ url_for('chat.rag_chat') }}" class="feature-link">开始对话</a>
+            </div>
+            <div class="feature-card">
+                <h2>Agent Chat</h2>
+                <p>使用工具增强的智能对话</p>
+                <a href="{{ url_for('chat.agent_chat') }}" class="feature-link">开始对话</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let slideIndex = 0;
+const slides = document.getElementsByClassName("slide");
+
+function showSlides() {
+    // 隐藏所有幻灯片
+    for (let i = 0; i < slides.length; i++) {
+        slides[i].style.opacity = "0";
+    }
+    
+    // 显示下一张
+    slideIndex = (slideIndex + 1) % slides.length;
+    slides[slideIndex].style.opacity = "1";
+    
+    setTimeout(showSlides, 5000); // 每5秒切换一次
+}
+
+showSlides();
+</script>
+{% endblock %} 

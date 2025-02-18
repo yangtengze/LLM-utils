@@ -21,7 +21,7 @@ class RAGAgent(BaseAgent):
 历史对话：
 {chat_history}
 
-用户问题：{query}
+当前用户问题：{query}
 
 请按照以下步骤回答：
 1. 分析用户问题的意图
@@ -51,8 +51,24 @@ class RAGAgent(BaseAgent):
         # 将检索结果添加到记忆中
         self.set_memory('retrieved_docs', docs)
         
-        # 调用父类的run方法处理查询
-        return super().run(query)
+        # 添加用户消息到历史
+        self.add_to_history(query, 'user')
+        
+        # 生成prompt并调用LLM
+        prompt = self.generate_prompt(query)
+        try:
+            response = self._call_language_model(prompt)
+            processed_response = self._process_tool_calls(response)
+            
+            # 添加助手回复到历史
+            self.add_to_history(processed_response, 'assistant')
+            
+            return processed_response
+            
+        except Exception as e:
+            error_msg = f"处理查询时出错: {str(e)}"
+            self.logger.error(error_msg)
+            return error_msg
     
     def reset(self):
         """重置Agent状态"""

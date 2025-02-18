@@ -2,7 +2,7 @@
 ollama:
   endpoint: "http://localhost:11434"  # Ollama 服务地址
   timeout: 300                        # 请求超时时间（秒）
-  default_model: "deepseek-r1:7b"             # 默认使用的模型
+  default_model: "deepseek-r1:1.5b"             # 默认使用的模型
   models:                             # 可用模型列表
     - deepseek-r1:1.5b
     - deepseek-r1:7b
