@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 import requests
 import json
+import re
 
 class BaseAgent(ABC):
     """
@@ -19,22 +20,45 @@ class BaseAgent(ABC):
     - Prompt管理
     """
     
-    DEFAULT_PROMPT_TEMPLATE = """你是一个智能助手，配备了以下工具：
-    {tools_description}
+    DEFAULT_PROMPT_TEMPLATE = """
+你是一个智能助手，配备了以下工具：
+{tools_description}
 
-    历史对话记录：
-    {chat_history}
+工具使用说明：
+1. 使用工具时，请用以下格式：
+   <tool name="工具名称" params={{"参数名": "参数值"}} />
+   
+2. 例如：
+   - 无参数: <tool name="get_local_ip" />
+   - 带参数: <tool name="search_documents" params={{"query": "搜索内容", "top_k": 5}} />
 
-    当前用户问题：{query}
+历史对话记录(从【开始，从】结束)
+    【{chat_history}】
 
-    请按照以下步骤思考并回答：
-    1. 理解用户问题
-    2. 确定是否需要使用工具
-    3. 如果需要使用工具，选择合适的工具并执行
-    4. 根据工具执行结果或已有知识生成回答
+！！！注意下面！！！
+当前用户问题：{query}
 
-    请用markdown格式回复。
-    """
+请按照以下步骤回答：
+1. 思考：
+   - 理解用户问题的意图
+   - 判断是否需要使用工具
+   - 如果需要，选择最合适的工具
+
+2. 行动：
+   如果需要使用工具，请使用如下格式：
+   <tool>工具名称</tool>
+
+3. 观察：
+   - 如果使用了工具，分析工具返回的结果
+   - 如果没使用工具，基于已有知识回答
+
+4. 回答：
+   - 用清晰的语言回答用户问题
+   - 如果使用了工具，解释工具返回的结果
+   - 如果有需要，提供后续建议
+
+请用 Markdown 格式回复。
+"""
 
     def __init__(self, config: Dict[str, Any]):
         """
@@ -80,7 +104,10 @@ class BaseAgent(ABC):
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             handlers=[
-                logging.FileHandler(log_path / f'agent_{time.strftime("%Y%m%d")}.log'),
+                logging.FileHandler(
+                    log_path / f'agent_{time.strftime("%Y%m%d")}.log',
+                    encoding='utf-8'
+                ),
                 logging.StreamHandler()
             ]
         )
@@ -152,11 +179,7 @@ class BaseAgent(ABC):
         """
         if 'timestamp' not in entry:
             entry['timestamp'] = time.time()
-            
-        # 如果是查询类型，确保包含响应
-        if entry.get('type') == 'query' and 'response' not in entry:
-            entry['response'] = None
-            
+        
         self.history.append(entry)
         if len(self.history) > self.max_history_length:
             self.history = self.history[-self.max_history_length:]
@@ -218,7 +241,7 @@ class BaseAgent(ABC):
             if history:
                 chat_history = "\n".join([
                     f"用户: {h['content']}\n"
-                    f"助手: {h.get('response', '(无响应)')}\n"
+                    f"助手: {h.get('response', '')}"  # 移除 'None' 显示
                     for h in history
                 ])
         
@@ -239,6 +262,10 @@ class BaseAgent(ABC):
         for entry in reversed(self.history):
             if entry.get('type') == 'query':
                 entry['response'] = response
+                # 记录日志
+                self.logger.info(f"Updated response for query: {entry['content']}")
+                # 自动保存状态
+                self._auto_save_state()
                 break
     
     def _call_llm(self, prompt: str) -> str:
@@ -255,12 +282,11 @@ class BaseAgent(ABC):
                 "temperature": self.llm_config.get('temperature', 0.7)
             }
         }
-        
         url = f"{self.llm_config.get('endpoint', 'http://localhost:11434')}/api/generate"
         
         try:
             self.logger.debug(f"Calling LLM with prompt: {prompt}")
-            response = requests.post(url, json=data)
+            response = requests.post(url, data=json.dumps(data))
             
             if response.status_code == 200:
                 result = response.json().get('response', '')
@@ -291,21 +317,70 @@ class BaseAgent(ABC):
         try:
             # 生成prompt
             prompt = self.generate_prompt(query)
-            self.logger.debug(f"Generated prompt: {prompt}")
+            self.logger.debug(f"Generated prompt: \n{prompt}\n")
             
-            # 调用LLM获取响应
+            # 调用LLM获取初始响应
             response = self._call_llm(prompt)
             
-            # 更新历史记录
-            self.update_last_response(response)
+            # 处理工具调用
+            final_response = self._process_tool_calls(response)
             
-            return response
+            # 更新历史记录
+            self.update_last_response(final_response)
+            
+            return final_response
             
         except Exception as e:
-            error_msg = f"查询处理失败: {str(e)}"
+            error_msg = f"处理失败: {str(e)}"
             self.logger.error(error_msg)
             self.update_last_response(error_msg)
             raise
+
+    def _process_tool_calls(self, response: str) -> str:
+        """处理响应中的工具调用"""
+        # 使用更复杂的正则表达式匹配带参数的工具调用
+        tool_pattern = r'<tool\s+name="([^"]+)"(?:\s+params=({[^}]+}))?\s*/>'
+        tool_matches = re.finditer(tool_pattern, response)
+        
+        if not tool_matches:
+            return response
+            
+        processed_response = response
+        for match in tool_matches:
+            tool_name = match.group(1)
+            params_str = match.group(2)
+            
+            try:
+                # 解析参数
+                params = {}
+                if params_str:
+                    params = json.loads(params_str)
+                
+                # 调用工具
+                self.logger.info(f"正在调用工具: {tool_name} 参数: {params}")
+                tool_result = self.use_tool(tool_name, **params)
+                
+                # 格式化工具结果
+                formatted_result = (
+                    f"\n### 工具执行结果\n"
+                    f"```json\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n```\n"
+                )
+                
+                # 替换原始的工具调用标记
+                processed_response = processed_response.replace(
+                    match.group(0),
+                    formatted_result
+                )
+                
+            except Exception as e:
+                error_msg = f"\n### 工具调用失败\n```\n{str(e)}\n```\n"
+                self.logger.error(f"工具 {tool_name} 调用失败: {str(e)}")
+                processed_response = processed_response.replace(
+                    match.group(0),
+                    error_msg
+                )
+        
+        return processed_response
     
     def reset(self) -> None:
         """

@@ -35,6 +35,7 @@ class Rag:
                   use_fp16=True,devices=self.device)
 
         self.top_k = self.config['rag']['retrieval']['top_k']
+        self.stream = self.config['ollama']['stream']
         self.score_threshold = self.config['rag']['retrieval']['score_threshold']
         self.similarity_metric = self.config['rag']['vector_store']['similarity_metric']
 
@@ -94,7 +95,7 @@ class Rag:
         for i in range(len(doc_vectors)):
             score = np.dot(query_vector, doc_vectors[i]) / (np.linalg.norm(query_vector) * np.linalg.norm(doc_vectors[i]))
             scores.append(score)
-        return scores
+        return np.array(scores)
     def _l2_similarity(self,query_vector,doc_vectors):
         # 计算L2相似度
         '''
@@ -109,7 +110,7 @@ class Rag:
         for i in range(len(doc_vectors)):
             score = np.linalg.norm(query_vector - doc_vectors[i])
             scores.append(score)
-        return scores
+        return np.array(scores)
         
     def load_documents(self, file_paths: List[str]) -> None:
         """
@@ -231,7 +232,13 @@ class Rag:
         if top_k is None:
             top_k = self.top_k
         relevant_docs = self.retrieve_documents(query, top_k)
-        prompt = f"用户查询: {query}\n\n相关文档:\n"
+        prompt = f"""
+        请根据相关文档回答用户查询的问题。若有的文档不相关，尽量不要输出与不相关文档的内容，并根据你自己来输出。
+
+        用户查询的问题: {query}
+
+        相关文档:\n
+        """
         for i, doc in enumerate(relevant_docs):
             prompt += f"""
             文档 {i+1} [来自: {doc['file_path']}]:
@@ -239,7 +246,37 @@ class Rag:
             相似度得分: {doc['score']:.4f}\n\n
             """
         return prompt
-
+    def parse_response(self, response: bytes) -> str:
+        """
+        解析 LLM 的响应
+        :param response: LLM返回的原始响应
+        :return: 解析后的文本内容
+        """
+        try:
+            # 如果是非流式响应
+            if not self.stream:
+                json_data = json.loads(response.decode('utf-8'))
+                return json_data.get('response', '')
+            
+            # 如果是流式响应
+            content = ''
+            string_data = response.decode('utf-8')
+            json_strings = string_data.split('\n')
+            
+            for json_str in json_strings:
+                if not json_str.strip():
+                    continue
+                try:
+                    chunk = json.loads(json_str)
+                    content += chunk.get('response', '')
+                except json.JSONDecodeError:
+                    continue
+            
+            return content
+            
+        except Exception as e:
+            print(f"解析响应失败: {str(e)}")
+            return str(response)
     def generate_response(self, query: str) -> str:
         """
         生成最终响应
@@ -247,42 +284,48 @@ class Rag:
         :return: 生成的响应文本
         """
         prompt = self.generate_prompt(query)
-        print("[DEBUG] 生成的提示:\n", prompt)
-        # 调用生成模型（这里用伪代码表示）
+        # print("[DEBUG] 生成的提示:\n", prompt)
+        # 调用生成模型
         response = self._call_language_model(prompt)
         return response
 
     def _call_language_model(self, prompt: str) -> str:
         """
-        调用语言模型生成响应（伪代码）
+        调用语言模型生成响应
         :param prompt: 提示文本
         :return: 生成的响应
         """
-        # 这里可以替换为实际的模型调用，例如 OpenAI API 或本地模型
-        # 例如：
-        # response = openai.Completion.create(prompt=prompt, ...)
-        # return response.choices[0].text
         self.llm_model = self.config['ollama']['default_model']
         data = {
             "model": self.llm_model,
             "prompt": prompt,
-            "stream": self.config['ollama']['stream'],
+            "stream": self.stream,
             "options": {
                 "temperature": self.config['ollama']['temperature']
             },
         }
         url = self.config['ollama']['endpoint'] + '/api/generate'
-        response = requests.post(url, json=json.dumps(data))
-        return response
-        # return f"基于以下信息生成响应:\n{prompt}"
+        
+        try:
+            response = requests.post(url, data=json.dumps(data))
+            if response.status_code == 200:
+                return self.parse_response(response.content)
+            else:
+                error_msg = f"LLM调用失败: HTTP {response.status_code}"
+                print(error_msg)
+                return error_msg
+        except Exception as e:
+            error_msg = f"LLM调用出错: {str(e)}"
+            print(error_msg)
+            return error_msg
 
-# 示例用法
-if __name__ == "__main__":
-    rag = Rag()
-    # 加载文档
-    rag.load_documents(rag.files)
+# # 示例用法
+# if __name__ == "__main__":
+#     rag = Rag()
+#     # 加载文档
+#     rag.load_documents(rag.files)
     
-    # 生成响应
-    query = "你是谁啊？你叫什么？"
-    response = rag.generate_response(query)
-    print(response)
+#     # 生成响应
+#     query = "你是谁啊？你叫什么？"
+#     response = rag.generate_response(query)
+#     print(response)
