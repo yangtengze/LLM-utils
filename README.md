@@ -6,48 +6,64 @@
 
 This is an utils based on LLMs such as RAG、Agent tools、WebUI etc. 
 
-
 ```dir 
-LLM-utils/
-├── bin/                    # 启动和停止脚本
+LLM-UTILS/
+├── bin/
 │   ├── start-llm-utils.bat
 │   ├── start-llm-utils.sh
 │   ├── stop-llm-utils.bat
 │   └── stop-llm-utils.sh
-├── configs/                # 配置文件目录
-│   ├── ollama.yaml        # Ollama LLM 配置
-│   ├── ragconfig.yaml     # RAG 系统配置
-│   └── webuisettings.yaml # Web UI 配置
-├── utils/                  # 核心功能模块
-│   ├── agent/             # Agent 系统
-│   │   ├── base_agent.py  # Agent 基类
-│   │   ├── rag_agent.py   # RAG Agent 实现
-│   │   ├── test_agent.py  # 测试用 Agent
-│   │   ├── tools.py       # 工具管理
-│   │   └── __init__.py
-│   ├── document_loader/   # 文档加载器
-│   │   ├── csvLoader.py   # CSV 文件加载器
-│   │   ├── docxLoader.py  # Word 文档加载器
-│   │   ├── mdLoader.py    # Markdown 加载器
-│   │   ├── pdfLoader.py   # PDF 加载器
-│   │   ├── txtLoader.py   # 文本文件加载器
-│   │   └── __init__.py
-│   ├── rag/               # RAG 实现
-│   │   ├── rag.py        # RAG 核心功能
-│   │   └── __init__.py
-│   └── web-ui/            # Web 界面
-│       ├── app.py         # Web 应用入口
-│       ├── routes/        # 路由定义
-│       ├── static/        # 静态资源
-│       └── templates/     # 页面模板
-├── data/                  # 数据目录
-│   ├── documents/         # 文档存储
-│   └── vec_db_store/     # 向量数据库存储
-├── server/                # 服务器相关
-├── tests/                 # 测试目录
-├── logs/                  # 日志目录
-├── Dockerfile            # Docker 配置
-└── requirements.txt      # 项目依赖
+├── configs/
+│   └── configs.yaml
+├── data/
+│   ├── agent_state.json
+│   ├── documents/
+│   │   ├── data.csv
+│   │   └── test.txt
+│   ├── tmp/
+│   │   ├── README.md
+│   │   └── tmp_store
+│   └── vec_db_store/
+│       ├── doc_vectors.npy
+│       └── metadata.json
+├── logs/
+│   └── log-20250218.log
+├── server/
+├── tests/
+│   ├── import_yaml.py
+│   ├── test_agent.py
+│   └── loaders/
+│       ├── csv.py
+│       ├── pdf.py
+│       └── txt.py
+├── utils/
+│   ├── agent/
+│   │   ├── base_agent.py
+│   │   ├── rag_agent.py
+│   │   └── tools.py
+│   ├── document_loader/
+│   │   ├── csvLoader.py
+│   │   ├── docxLoader.py
+│   │   ├── mdLoader.py
+│   │   ├── pdfLoader.py
+│   │   └── txtLoader.py
+│   ├── rag/
+│   │   └── rag.py
+│   └── webui/
+│       ├── app.py
+│       └── routes/
+│           ├── api_routes.py
+│           ├── chat_routes.py
+│           └── templates/
+│               ├── agent_chat.html
+│               ├── base.html
+│               ├── index.html
+│               ├── multimodal_chat.html
+│               ├── rag_chat.html
+│               └── raw_chat.html
+├── Dockerfile
+├── README.md
+└── requirements.txt
 ```
 
 ## 功能特性
@@ -82,15 +98,13 @@ LLM-utils/
 ## 快速开始
 
 1. 安装依赖
-```bash
-pip install -r requirements.txt
-```
+
+> [anaconda](https://www.anaconda.com/download/success)
+> [cuda](https://developer.nvidia.com/cuda-downloads)
 
 2. 配置
 编辑 configs 目录下的相关配置文件：
-- ollama.yaml: LLM 服务配置
-- ragconfig.yaml: RAG 系统配置
-- webuisettings.yaml: Web UI 配置
+- configs.yaml: LLM 服务配置 & RAG 系统配置 & Web UI 配置
 
 3. 启动服务
 Windows:
@@ -105,7 +119,7 @@ Linux/Mac:
 
 4. 使用示例
 ```python
-from utils.agent import TestAgent
+from utils.agent import BaseAgent
 from utils.agent.tools import Tool, get_local_ip
 
 # 配置
@@ -115,14 +129,14 @@ config = {
     'log_path': 'logs',
     'llm': {
         'endpoint': 'http://localhost:11434',
-        'model': 'llama2',
+        'model': 'deepseek-r1:7b',
         'temperature': 0.7,
         'stream': False
     }
 }
 
 # 创建 Agent
-agent = TestAgent(config)
+agent = BaseAgent(config)
 
 # 注册工具
 agent.register_tool(Tool(
