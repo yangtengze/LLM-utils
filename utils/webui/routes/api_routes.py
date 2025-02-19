@@ -8,6 +8,7 @@ from utils.agent.tools import *
 # import utils.model_utils as model_utils
 
 api = Blueprint('api', __name__)
+configs = load_config('configs')
 
 # 初始化 Agent 和 RAG
 agent_config = {
@@ -15,10 +16,9 @@ agent_config = {
     'state_path': 'data/agent_state.json',
     'log_path': 'logs',
     'llm': {
-        'endpoint': 'http://localhost:11434',
-        'model': 'deepseek-r1:1.5b',
-        'temperature': 0.7,
-        'stream': False
+        'endpoint': configs['ollama']['endpoint'],
+        'model': configs['ollama']['default_model'],
+        'stream':  configs['ollama']['stream']
     }
 }
 agent = BaseAgent(agent_config)
