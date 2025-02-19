@@ -1,0 +1,67 @@
+2025-02-19 12:12:58,458 - BaseAgent - INFO - Registered tool: get_local_ip
+2025-02-19 12:12:58,459 - BaseAgent - INFO - Registered tool: search_documents
+2025-02-19 12:12:58,498 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.9:5000
+2025-02-19 12:12:58,499 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-02-19 12:12:58,501 - werkzeug - INFO -  * Restarting with stat
+2025-02-19 12:13:05,345 - BaseAgent - INFO - Registered tool: get_local_ip
+2025-02-19 12:13:05,346 - BaseAgent - INFO - Registered tool: search_documents
+2025-02-19 12:13:05,364 - werkzeug - WARNING -  * Debugger is active!
+2025-02-19 12:13:05,367 - werkzeug - INFO -  * Debugger PIN: 537-052-207
+2025-02-19 12:13:09,021 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "GET / HTTP/1.1" 200 -
+2025-02-19 12:13:09,071 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 12:13:09,322 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "GET /static/css/style.css HTTP/1.1" 200 -
+2025-02-19 12:13:09,334 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "GET /static/images/4.jpg HTTP/1.1" 200 -
+2025-02-19 12:13:09,334 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "GET /static/images/1.jpg HTTP/1.1" 200 -
+2025-02-19 12:13:09,337 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "GET /static/images/3.jpg HTTP/1.1" 200 -
+2025-02-19 12:13:09,338 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "GET /static/images/2.jpg HTTP/1.1" 200 -
+2025-02-19 12:13:09,525 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:09] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-02-19 12:13:14,871 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:14] "GET /chat/agent HTTP/1.1" 200 -
+2025-02-19 12:13:14,928 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:14] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 12:13:14,929 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:14] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 12:13:14,938 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:14] "GET /api/tools HTTP/1.1" 200 -
+2025-02-19 12:13:16,763 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:16] "GET /chat/rag HTTP/1.1" 200 -
+2025-02-19 12:13:16,791 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:16] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 12:13:16,792 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:16] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 12:13:16,805 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:16] "GET /api/documents HTTP/1.1" 200 -
+2025-02-19 12:13:18,925 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:18] "GET /chat/raw HTTP/1.1" 200 -
+2025-02-19 12:13:18,959 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:18] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 12:13:18,960 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:18] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 12:13:24,815 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 12:13:24] "POST /api/chat/raw HTTP/1.1" 200 -
+2025-02-19 13:07:53,339 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:07:53] "POST /api/chat/raw HTTP/1.1" 200 -
+2025-02-19 13:07:58,232 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:07:58] "GET /chat/rag HTTP/1.1" 200 -
+2025-02-19 13:07:58,269 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:07:58] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:07:58,270 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:07:58] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:07:58,284 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:07:58] "GET /api/documents HTTP/1.1" 200 -
+2025-02-19 13:08:03,756 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:08:03] "[35m[1mPOST /api/chat/rag HTTP/1.1[0m" 500 -
+2025-02-19 13:08:37,606 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:08:37] "GET /chat/agent HTTP/1.1" 200 -
+2025-02-19 13:08:37,637 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:08:37] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:08:37,639 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:08:37] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:08:37,658 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:08:37] "GET /api/tools HTTP/1.1" 200 -
+2025-02-19 13:08:55,757 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:08:55] "POST /api/chat/agent HTTP/1.1" 200 -
+2025-02-19 13:09:20,291 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:20] "POST /api/chat/agent HTTP/1.1" 200 -
+2025-02-19 13:09:44,040 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "GET / HTTP/1.1" 200 -
+2025-02-19 13:09:44,081 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:09:44,085 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "[36mGET /static/images/1.jpg HTTP/1.1[0m" 304 -
+2025-02-19 13:09:44,088 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "[36mGET /static/images/2.jpg HTTP/1.1[0m" 304 -
+2025-02-19 13:09:44,091 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "[36mGET /static/images/3.jpg HTTP/1.1[0m" 304 -
+2025-02-19 13:09:44,101 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "[36mGET /static/images/4.jpg HTTP/1.1[0m" 304 -
+2025-02-19 13:09:44,105 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:44] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:09:54,448 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:54] "GET /chat/agent HTTP/1.1" 200 -
+2025-02-19 13:09:54,492 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:54] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:09:54,499 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:54] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:09:54,507 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:09:54] "GET /api/tools HTTP/1.1" 200 -
+2025-02-19 13:10:09,566 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:09] "POST /api/chat/agent HTTP/1.1" 200 -
+2025-02-19 13:10:25,205 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:25] "GET /chat/rag HTTP/1.1" 200 -
+2025-02-19 13:10:25,237 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:25] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:10:25,238 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:25] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:10:25,258 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:25] "GET /api/documents HTTP/1.1" 200 -
+2025-02-19 13:10:26,055 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:26] "GET /chat/raw HTTP/1.1" 200 -
+2025-02-19 13:10:26,089 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:26] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:10:26,090 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:26] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:10:46,415 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:46] "GET /chat/rag HTTP/1.1" 200 -
+2025-02-19 13:10:46,447 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:46] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-02-19 13:10:46,449 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:46] "[33mGET /static/js/main.js HTTP/1.1[0m" 404 -
+2025-02-19 13:10:46,465 - werkzeug - INFO - 127.0.0.1 - - [19/Feb/2025 13:10:46] "GET /api/documents HTTP/1.1" 200 -
