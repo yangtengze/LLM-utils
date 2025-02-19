@@ -9,7 +9,7 @@ from utils.agent.tools import *
 
 api = Blueprint('api', __name__)
 configs = load_config('configs')
-
+print(configs['ollama'])
 # 初始化 Agent 和 RAG
 agent_config = {
     'max_history_length': 100,
@@ -18,6 +18,7 @@ agent_config = {
     'llm': {
         'endpoint': configs['ollama']['endpoint'],
         'model': configs['ollama']['default_model'],
+        'temperature': configs['ollama']['temperature'],
         'stream':  configs['ollama']['stream']
     }
 }
