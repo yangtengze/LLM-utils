@@ -7,9 +7,9 @@ torchaudio>=2.1.0      # PyTorch audio utilities
 
 # Document Processing
 python-docx>=0.8.11    # for docx files
-PyPDF2>=3.0.0         # for pdf files
-pandas>=2.0.0         # for csv files
-markdown>=3.5.1       # for markdown files
+PyMuPDF>=1.19.0        # for pdf files (更快的PDF处理)
+pandas>=2.0.0          # for csv files
+markdown>=3.5.1        # for markdown files
 
 # Data Processing & ML
 numpy>=1.24.0
@@ -33,3 +33,6 @@ pytest-cov>=4.1.0      # for test coverage
 # Optional but recommended
 colorama>=0.4.6        # for colored terminal output
 rich>=13.7.0           # for rich terminal output
+
+# New requirement
+beautifulsoup4>=4.9.3    # for markdown parsing
