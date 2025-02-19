@@ -2,6 +2,8 @@
 
 一个模块化的 LLM 工具集合，提供了文档处理、RAG、Agent 等功能。
 
+还尚未完成！！！(not success yet)
+
 ## 项目结构
 
 This is an utils based on LLMs such as RAG、Agent tools、WebUI etc. 
@@ -22,6 +24,9 @@ LLM-UTILS/
 │   │   └── test.txt
 │   ├── tmp/
 │   │   ├── README.md
+│   │   ├── llama2/
+│   │   │   ├──llama2.pdf
+│   │   ├── 1.docx
 │   │   └── tmp_store
 │   └── vec_db_store/
 │       ├── doc_vectors.npy
@@ -39,7 +44,6 @@ LLM-UTILS/
 ├── utils/
 │   ├── agent/
 │   │   ├── base_agent.py
-│   │   ├── rag_agent.py
 │   │   └── tools.py
 │   ├── document_loader/
 │   │   ├── csvLoader.py
@@ -98,13 +102,15 @@ LLM-UTILS/
 ## 快速开始
 
 1. 安装依赖
-
-> [anaconda](https://www.anaconda.com/download/success)
-> [cuda](https://developer.nvidia.com/cuda-downloads)
+```bash
+pip install -r requirements.txt
+```
 
 2. 配置
 编辑 configs 目录下的相关配置文件：
-- configs.yaml: LLM 服务配置 & RAG 系统配置 & Web UI 配置
+- ollama.yaml: LLM 服务配置
+- ragconfig.yaml: RAG 系统配置
+- webuisettings.yaml: Web UI 配置
 
 3. 启动服务
 Windows:
@@ -119,7 +125,7 @@ Linux/Mac:
 
 4. 使用示例
 ```python
-from utils.agent import BaseAgent
+from utils.agent import TestAgent
 from utils.agent.tools import Tool, get_local_ip
 
 # 配置
@@ -129,14 +135,14 @@ config = {
     'log_path': 'logs',
     'llm': {
         'endpoint': 'http://localhost:11434',
-        'model': 'deepseek-r1:7b',
+        'model': 'llama2',
         'temperature': 0.7,
         'stream': False
     }
 }
 
 # 创建 Agent
-agent = BaseAgent(config)
+agent = TestAgent(config)
 
 # 注册工具
 agent.register_tool(Tool(
@@ -178,7 +184,3 @@ print(response)
 
 如果您对这个项目感兴趣，欢迎联系：
 - Email: yangtengze@163.com
-
-## License
-
-MIT License
