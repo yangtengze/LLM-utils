@@ -46,4 +46,3 @@ if %CUDA_AVAILABLE%==1 (
 )
 
 pause
-pip3 install torch torchvision torchaudio -f https://mirrors.aliyun.com/pytorch-wheels/cu118

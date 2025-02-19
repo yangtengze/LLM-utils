@@ -2,6 +2,9 @@ from typing import Callable, Dict, Any, List
 from dataclasses import dataclass
 import socket
 from ..rag.rag import Rag
+import yaml
+from pathlib import Path
+
 
 @dataclass
 class Tool:
@@ -66,6 +69,12 @@ class ToolRegistry:
                 
         return validated_params
 
+def load_config(config_name: str):
+    config_path = Path("configs") / f"{config_name}.yaml"
+    with open(config_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
 # 创建一些示例工具
 def search_documents(query: str, top_k: int = 3) -> List[Dict]:
     """搜索文档的工具"""
@@ -94,6 +103,7 @@ def get_local_ip() -> Dict[str, str]:
         return {
             "error": f"获取IP地址失败: {str(e)}"
         }
+
 # # 注册工具示例
 # registry = ToolRegistry()
 # registry.register(Tool(
