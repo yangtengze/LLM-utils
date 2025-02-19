@@ -1,15 +1,16 @@
-# LLM & Embeddings
+
+# Other packages (using default PyPI mirror)
 FlagEmbedding>=1.1.6
 requests>=2.31.0
-torch>=2.1.0           # PyTorch core
-torchvision>=0.16.0    # PyTorch vision utilities
-torchaudio>=2.1.0      # PyTorch audio utilities
 
 # Document Processing
-python-docx>=0.8.11    # for docx files
-PyMuPDF>=1.19.0        # for pdf files (更快的PDF处理)
-pandas>=2.0.0          # for csv files
-markdown>=3.5.1        # for markdown files
+python-docx>=0.8.11    
+PyMuPDF>=1.19.0        
+pandas>=2.0.0          
+markdown>=3.5.1        
+beautifulsoup4>=4.9.3
+lxml>=4.9.0
+html5lib>=1.1
 
 # Data Processing & ML
 numpy>=1.24.0
@@ -21,18 +22,13 @@ flask>=2.0.0
 flask-cors>=4.0.0
 
 # Utilities
-python-dotenv>=1.0.0   # for environment variables
-pathlib>=1.0.1         # for path handling
-logging>=0.5.1.2       # for logging
-dataclasses>=0.6       # for data classes
+python-dotenv>=1.0.0   
+dataclasses>=0.6       
 
 # Testing
-pytest>=7.4.0          # for testing
-pytest-cov>=4.1.0      # for test coverage
+pytest>=7.4.0        
+pytest-cov>=4.1.0     
 
 # Optional but recommended
-colorama>=0.4.6        # for colored terminal output
+colorama>=0.4.6        
 rich>=13.7.0           # for rich terminal output
-
-# New requirement
-beautifulsoup4>=4.9.3    # for markdown parsing
