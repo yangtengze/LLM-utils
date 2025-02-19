@@ -24,6 +24,9 @@ LLM-UTILS/
 │   │   └── test.txt
 │   ├── tmp/
 │   │   ├── README.md
+│   │   ├── llama2/
+│   │   │   ├──llama2.pdf
+│   │   ├── 1.docx
 │   │   └── tmp_store
 │   └── vec_db_store/
 │       ├── doc_vectors.npy
@@ -41,7 +44,6 @@ LLM-UTILS/
 ├── utils/
 │   ├── agent/
 │   │   ├── base_agent.py
-│   │   ├── rag_agent.py
 │   │   └── tools.py
 │   ├── document_loader/
 │   │   ├── csvLoader.py
