@@ -2,19 +2,23 @@ from flask import Blueprint, request, jsonify
 from utils.agent.base_agent import BaseAgent
 from utils.rag import Rag
 from utils.agent.tools import *
-# import utils.multimodal_utils as multimodal_utils
+from utils.load_config import configs
 import os
+
+# import utils.multimodal_utils as multimodal_utils
 api = Blueprint('api', __name__)
 # 初始化 Agent 和 RAG
 agent = BaseAgent()
 
 rag = Rag()
+
 # 注册工具
 agent.register_tool(Tool(
     name="get_local_ip",
     description="获取本机的IP地址信息",
     func=get_local_ip
 ))
+
 # 注册带参数的工具
 agent.register_tool(Tool(
     name="search_documents",
@@ -104,6 +108,7 @@ def agent_chat():
             'status': 'error',
             'message': str(e)
         }), 500
+
 @api.route('/documents', methods=['GET'])
 def get_documents():
     """获取已加载的文档列表"""
@@ -133,6 +138,91 @@ def get_tools():
         tools = agent.get_available_tools()
         # print(tools)
         return jsonify(tools)
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@api.route('/upload', methods=['POST'])
+def upload_files():
+    """处理文件上传"""
+    if 'files' not in request.files:
+        return jsonify({
+            'status': 'error',
+            'message': '没有文件被上传'
+        }), 400
+        
+    files = request.files.getlist('files')
+    if not files:
+        return jsonify({
+            'status': 'error',
+            'message': '没有选择文件'
+        }), 400
+
+    try:
+        # 确保上传目录存在
+        upload_dir = os.path.join('data', 'documents')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        uploaded_files = []
+        for file in files:
+            if file.filename:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(upload_dir, filename)
+                file.save(filepath)
+                uploaded_files.append(filepath)
+        
+        # 加载文档到 RAG 系统
+        rag.load_documents(uploaded_files)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'成功上传 {len(uploaded_files)} 个文件'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'上传文件失败: {str(e)}'
+        }), 500
+
+@api.route('/config', methods=['GET'])
+def get_config():
+    """获取配置信息"""
+    try:
+        return jsonify({
+            'status': 'success',
+            'current_model': configs['ollama']['default_model'],
+            'available_models': configs['ollama']['models']
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@api.route('/config/model', methods=['POST'])
+def update_model():
+    """更新当前使用的模型"""
+    try:
+        data = request.get_json()
+        model_name = data.get('model')
+        
+        if model_name not in configs['ollama']['models']:
+            return jsonify({
+                'status': 'error',
+                'message': '不支持的模型'
+            }), 400
+            
+        # 更新 RAG 和 Agent 的模型配置
+        rag.llm_model = model_name
+        agent.config['llm']['model'] = model_name
+        
+        return jsonify({
+            'status': 'success',
+            'model': model_name
+        })
     except Exception as e:
         return jsonify({
             'status': 'error',
