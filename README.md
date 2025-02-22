@@ -6,7 +6,7 @@
 | 日期和时间       | 版本   | 更新内容                  |
 |----------------|-------|-------------------------|
 | 2025/2/20  0:08 | 0.1   | LLM-utils 上线|
-
+| 2025/2/22  21:50 | 0.1.1   | WebUI 优化|
 
 
 ## 项目结构
@@ -106,18 +106,25 @@ LLM-UTILS/
 
 ## 快速开始
 
-1. 安装依赖
+1. *方法一 安装依赖*
+
+> 确保conda环境有torch(cpu/gpu)
+
 ```bash
 pip install -r requirements.txt
 ```
 
-2. 配置
-编辑 configs 目录下的相关配置文件：
-- ollama.yaml: LLM 服务配置
-- ragconfig.yaml: RAG 系统配置
-- webuisettings.yaml: Web UI 配置
+```bash
+python run_webui.py
+```
 
-3. 启动服务
+2. 配置
+编辑 configs/configs.yaml 的相关配置文件：
+- ollama: LLM 服务配置
+- rag.yaml: RAG 系统配置
+- webui.yaml: Web UI 配置
+
+3. *方法二 脚本直接启动（冲头下载依赖）*
 Windows:
 ```bash
 bin/start-llm-utils.bat
@@ -129,25 +136,63 @@ Linux/Mac:
 ```
 
 4. 使用示例
-```python
-from utils.agent import TestAgent
-from utils.agent.tools import Tool, get_local_ip
 
-# 配置
-config = {
-    'max_history_length': 100,
-    'state_path': 'data/agent_state.json',
-    'log_path': 'logs',
-    'llm': {
-        'endpoint': 'http://localhost:11434',
-        'model': 'llama2',
-        'temperature': 0.7,
-        'stream': False
-    }
+4.1 raw对话
+```python
+from utils.load_config import configs
+from utils.base_func import parse_response
+import requests
+import json
+prompt = '你好啊，你是谁？'
+
+llm_model = configs['ollama']['default_model']
+data = {
+    "model": llm_model,
+    "prompt": prompt,
+    "stream": configs['ollama']['stream'],
+    "options": {
+        "temperature": configs['ollama']['temperature']
+    },
 }
+url = configs['ollama']['endpoint'] + '/api/generate'
+try:
+    response = requests.post(url, data=json.dumps(data))
+    if response.status_code == 200:
+        result = parse_response(response, data['stream'])
+        print(result)
+    else:
+        error_msg = f"LLM调用失败: HTTP {response.status_code}"
+        print(error_msg)
+except Exception as e:
+    error_msg = f"LLM调用出错: {str(e)}"
+    print(error_msg)
+
+```
+4.2 rag 对话
+
+```python
+from utils.rag.rag import Rag
+
+# 创建 Rag
+rag = Rag()
+rag.load_documents(rag.files)
+
+query = "你是谁啊？你叫什么？"
+try:
+    response = rag.generate_response(query)
+    print(response)
+except Exception as e:
+  error_msg = f"LLM调用出错: {str(e)}"
+  print(error_msg)
+
+```
+4.3 agent对话
+```python
+from utils.agent import BaseAgent
+from utils.agent.tools import *
 
 # 创建 Agent
-agent = TestAgent(config)
+agent = BaseAgent()
 
 # 注册工具
 agent.register_tool(Tool(
@@ -156,9 +201,14 @@ agent.register_tool(Tool(
     func=get_local_ip
 ))
 
+query = "你好，请帮我查看本机IP地址"
 # 运行对话
-response = agent.run("你好，请帮我查看本机IP地址")
-print(response)
+try:
+    response = agent.run(query)
+    print(response)
+except Exception as e:
+    error_msg = f"LLM调用出错: {str(e)}"
+    print(error_msg)
 ```
 
 ## 开发说明

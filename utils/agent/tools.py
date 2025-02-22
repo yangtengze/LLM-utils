@@ -1,10 +1,7 @@
 from typing import Callable, Dict, Any, List
 from dataclasses import dataclass
 import socket
-from ..rag.rag import Rag
-import yaml
-from pathlib import Path
-
+from ..rag import Rag
 
 @dataclass
 class Tool:
@@ -68,12 +65,6 @@ class ToolRegistry:
                 validated_params[param_name] = params.get(param_name)
                 
         return validated_params
-
-def load_config(config_name: str):
-    config_path = Path("configs") / f"{config_name}.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
-
 
 # 创建一些示例工具
 def search_documents(query: str, top_k: int = 3) -> List[Dict]:

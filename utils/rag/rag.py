@@ -1,6 +1,7 @@
 from utils.document_loader import CSVLoader, MDLoader, PDFLoader, TXTLoader
+from utils.load_config import configs
+from utils.base_func import parse_response
 from typing import List, Dict
-import yaml
 from pathlib import Path
 import numpy as np
 import requests
@@ -18,7 +19,7 @@ class Rag:
         - 自动加载已保存的文档和向量
         - 支持增量添加文档
         """
-        self.config = self.load_config("configs")
+        self.config = configs
         self.documents_path = Path(self.config['rag']['document_path'])
         self.files = self.get_all_files_in_directory()
         print('documents files:', self.files)
@@ -41,10 +42,6 @@ class Rag:
 
         # self.reranker_model = 
     
-    def load_config(self,config_name: str):
-        config_path = Path("configs") / f"{config_name}.yaml"
-        with open(config_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
     def get_all_files_in_directory(self) -> List[str]:
         directory_path = Path(self.documents_path)  # 确保这是一个 Path 对象
         return [str(file) for file in directory_path.rglob('*') if file.is_file()]
@@ -81,6 +78,7 @@ class Rag:
         # 保存元数据
         with open(self._get_metadata_path(), "w", encoding="utf-8") as f:
             json.dump(self.docs, f, ensure_ascii=False, indent=2)
+    
     def _cosine_similarity(self,query_vector,doc_vectors):
         # 计算余弦相似度
         '''
@@ -96,6 +94,7 @@ class Rag:
             score = np.dot(query_vector, doc_vectors[i]) / (np.linalg.norm(query_vector) * np.linalg.norm(doc_vectors[i]))
             scores.append(score)
         return np.array(scores)
+    
     def _l2_similarity(self,query_vector,doc_vectors):
         # 计算L2相似度
         '''
@@ -188,6 +187,7 @@ class Rag:
             os.remove(self._get_vector_path())
         if self._get_metadata_path().exists():
             os.remove(self._get_metadata_path())
+    
     def retrieve_documents(self, query: str, top_k: int = None) -> List[Dict]:
         """
         检索相关文档并返回带路径的结果
@@ -246,37 +246,7 @@ class Rag:
             相似度得分: {doc['score']:.4f}\n\n
             """
         return prompt
-    def parse_response(self, response: bytes) -> str:
-        """
-        解析 LLM 的响应
-        :param response: LLM返回的原始响应
-        :return: 解析后的文本内容
-        """
-        try:
-            # 如果是非流式响应
-            if not self.stream:
-                json_data = json.loads(response.decode('utf-8'))
-                return json_data.get('response', '')
-            
-            # 如果是流式响应
-            content = ''
-            string_data = response.decode('utf-8')
-            json_strings = string_data.split('\n')
-            
-            for json_str in json_strings:
-                if not json_str.strip():
-                    continue
-                try:
-                    chunk = json.loads(json_str)
-                    content += chunk.get('response', '')
-                except json.JSONDecodeError:
-                    continue
-            
-            return content
-            
-        except Exception as e:
-            print(f"解析响应失败: {str(e)}")
-            return str(response)
+    
     def generate_response(self, query: str) -> str:
         """
         生成最终响应
@@ -309,7 +279,7 @@ class Rag:
         try:
             response = requests.post(url, data=json.dumps(data))
             if response.status_code == 200:
-                return self.parse_response(response.content)
+                return parse_response(response, self.stream)
             else:
                 error_msg = f"LLM调用失败: HTTP {response.status_code}"
                 print(error_msg)

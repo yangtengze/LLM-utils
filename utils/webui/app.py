@@ -2,7 +2,7 @@ from flask import Flask, render_template, redirect, url_for
 from flask_cors import CORS
 from .routes.api_routes import api
 from .routes.chat_routes import chat
-
+from utils.load_config import configs
 app = Flask(__name__)
 CORS(app)
 
@@ -16,4 +16,4 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host=configs['webui']['server']['host'], port=configs['webui']['server']['port'], debug=configs['webui']['server']['debug'])
