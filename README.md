@@ -109,8 +109,13 @@ LLM-UTILS/
 - 系统配置
 
 ## 快速开始
+1. **配置**
+编辑 configs/configs.yaml 的相关配置文件：
+- ollama: LLM 服务配置
+- rag.yaml: RAG 系统配置
+- webui.yaml: Web UI 配置
 
-1. *方法一 安装依赖*
+2. **方法一 安装依赖**
 
 > 确保conda环境有torch(cpu/gpu)
 
@@ -122,13 +127,7 @@ pip install -r requirements.txt
 python run_webui.py
 ```
 
-2. 配置
-编辑 configs/configs.yaml 的相关配置文件：
-- ollama: LLM 服务配置
-- rag.yaml: RAG 系统配置
-- webui.yaml: Web UI 配置
-
-3. *方法二 脚本直接启动（冲头下载依赖）*
+3. **方法二 脚本直接启动（从头下载依赖gpu版）**
 Windows:
 ```bash
 bin/start-llm-utils.bat
@@ -137,6 +136,12 @@ bin/start-llm-utils.bat
 Linux/Mac:
 ```bash
 ./bin/start-llm-utils.sh
+```
+
+启动过一次后面就是
+
+```bash
+python ./run_webui.py
 ```
 
 ## 4. 使用示例
