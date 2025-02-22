@@ -5,7 +5,27 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
+        <div class="settings-section">
+            <h3>对话设置</h3>
+            <div class="setting-item">
+                <label for="temperature-slider">Temperature</label>
+                <div class="slider-container">
+                    <input type="range" 
+                           id="temperature-slider" 
+                           min="0" 
+                           max="2" 
+                           step="0.1" 
+                           value="0.7"
+                           class="temperature-slider">
+                    <span id="temperature-value">0.7</span>
+                </div>
+                <p class="setting-description">
+                    调整值越高，回答越具有创造性；值越低，回答越保守。
+                </p>
+            </div>
+        </div>
     </div>
+    
     <div class="chat-main">
         <div class="chat-header">
             <h2>Raw Chat</h2>
@@ -39,10 +59,12 @@
                     <i class="fas fa-trash-alt"></i>
                     清空对话
                 </button>
-                <span class="model-info">
+                <div class="model-selector">
                     <i class="fas fa-microchip"></i>
-                    模型: deepseek-r1:1.5b
-                </span>
+                    <select id="model-select" class="model-select">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -55,17 +77,69 @@ const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
 const clearButton = document.getElementById('clear-button');
 
-// 发送消息
+// 添加温度滑块相关
+const temperatureSlider = document.getElementById('temperature-slider');
+const temperatureValue = document.getElementById('temperature-value');
+let currentTemperature = 0.7;
+
+// 更新温度值显示
+temperatureSlider.addEventListener('input', (e) => {
+    currentTemperature = parseFloat(e.target.value);
+    temperatureValue.textContent = currentTemperature.toFixed(1);
+});
+
+// 加载模型配置
+async function loadModelConfig() {
+    try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        if (data.status === 'success') {
+            const modelSelect = document.getElementById('model-select');
+            modelSelect.innerHTML = data.available_models.map(model => 
+                `<option value="${model}" ${model === data.current_model ? 'selected' : ''}>
+                    ${model}
+                </option>`
+            ).join('');
+        }
+    } catch (error) {
+        console.error('加载模型配置失败:', error);
+        document.getElementById('model-select').innerHTML = '<option value="">加载失败</option>';
+    }
+}
+
+// 切换模型
+document.getElementById('model-select').addEventListener('change', async (e) => {
+    const modelName = e.target.value;
+    try {
+        const response = await fetch('/api/config/model', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ model: modelName })
+        });
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+            addMessage(`已切换到模型: ${modelName}`, 'system');
+        } else {
+            addMessage('切换模型失败：' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('切换模型失败:', error);
+        addMessage('切换模型失败，请重试', 'error');
+    }
+});
+
+// 修改发送消息函数，添加temperature参数
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
 
-    // 添加用户消息到界面
     addMessage(message, 'user');
     messageInput.value = '';
     messageInput.style.height = 'auto';
 
-    // 显示加载动画
     const loadingMessage = addLoadingMessage();
 
     try {
@@ -74,11 +148,13 @@ async function sendMessage() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ 
+                message,
+                temperature: currentTemperature
+            })
         });
         
         const data = await response.json();
-        // 移除加载动画
         loadingMessage.remove();
         
         if (data.status === 'success') {
@@ -87,7 +163,6 @@ async function sendMessage() {
             addMessage('发送消息失败：' + data.message, 'error');
         }
     } catch (error) {
-        // 移除加载动画
         loadingMessage.remove();
         console.error('发送消息失败:', error);
         addMessage('发送消息失败，请重试', 'error');
@@ -168,6 +243,9 @@ messageInput.addEventListener('keypress', (e) => {
         sendMessage();
     }
 });
+
+// 初始化
+loadModelConfig();
 </script>
 {% endblock %}
 {% endblock %}

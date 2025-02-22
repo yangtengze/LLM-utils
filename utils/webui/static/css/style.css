@@ -1,10 +1,14 @@
-/* 基础样式 */
+/* 基础变量 */
 :root {
     --primary-color: #2c3e50;
     --secondary-color: #3498db;
+    --accent-color: #e74c3c;
     --background-color: #f5f6fa;
     --text-color: #2c3e50;
     --border-color: #dcdde1;
+    --sidebar-width: 300px;
+    --header-height: 60px;
+    --footer-height: 52px;  /* 添加footer高度变量 */
 }
 
 * {
@@ -54,93 +58,205 @@ body {
     background-color: var(--secondary-color);
 }
 
-/* 聊天界面 */
+/* 主容器布局 */
+.main-container {
+    padding: 1.5rem 2rem;  /* 上下留出1.5rem间距，左右2rem */
+}   
+
+/* 聊天容器布局优化 */
 .chat-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 1rem;
+    max-width: 1400px;  /* 稍微增加最大宽度 */
+    width: 90%;        /* 占据90%的视窗宽度 */
+    margin: 0 auto;    /* 水平居中 */
+    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 3rem);  /* 减去navbar、footer高度和padding */
     display: grid;
     grid-template-columns: 300px 1fr;
-    gap: 1rem;
-    height: calc(100vh - 150px);
+    gap: 1.5rem;
+    background: transparent;  /* 移除背景色 */
 }
 
-.chat-sidebar {
+/* 侧边栏和主聊天区域样式优化 */
+.chat-sidebar,
+.chat-main {
     background: white;
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: 12px;
     border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+/* 聊天区域样式优化 */
 .chat-main {
     display: flex;
     flex-direction: column;
+    height: calc(100vh - var(--header-height) - var(--footer-height) - 4rem);  /* 减去navbar、footer高度和padding */
+}
+
+.chat-header {
+    padding: 1rem;
     background: white;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.chat-header h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.3rem;
+}
+
+.chat-description {
+    font-size: 0.85rem;
 }
 
 .chat-messages {
     flex-grow: 1;
+    padding: 1.5rem;
     overflow-y: auto;
-    padding: 1rem;
+    background: var(--background-color);
+    height: auto;  /* 移除固定高度，让它根据flex自动调整 */
 }
 
 .message {
-    margin-bottom: 1rem;
-    padding: 1rem;
-    border-radius: 8px;
+    max-width: 80%;
+    margin: 0.8rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+    animation: fadeIn 0.3s ease-out;
 }
 
 .user-message {
-    background-color: #e3f2fd;
-    margin-left: 2rem;
+    margin-left: auto;
+    flex-direction: row-reverse;
 }
 
-.assistant-message {
-    background-color: #f5f5f5;
-    margin-right: 2rem;
+.message-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
 }
 
+.user-message .message-icon {
+    background: var(--primary-color);
+}
+
+.assistant-message .message-icon {
+    background: var(--secondary-color);
+}
+
+.system-message .message-icon {
+    background: var(--accent-color);
+}
+
+.message-content {
+    padding: 0.8rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    line-height: 1.4;
+}
+
+.user-message .message-content {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* 输入区域样式优化 */
 .chat-input {
-    padding: 1rem;
+    margin-top: auto;  /* 确保输入框始终在底部 */
+    height: auto;
+    padding: 0.8rem;
+    background: white;
     border-top: 1px solid var(--border-color);
 }
 
 .input-group {
     display: flex;
-    gap: 1rem;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
 }
 
 .message-input {
+    padding: 0.6rem;
     flex-grow: 1;
-    padding: 0.5rem;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 8px;
     resize: none;
+    min-height: 20px;
+    max-height: 100px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+.message-input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
 
 .send-button {
-    padding: 0.5rem 1rem;
-    background-color: var(--secondary-color);
+    padding: 0 1rem;
+    background: var(--secondary-color);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
 }
 
 .send-button:hover {
-    opacity: 0.9;
+    background: #2980b9;
+    transform: translateY(-1px);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
+/* 工具栏样式优化 */
+.input-tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 响应式设计优化 */
+@media (max-width: 1600px) {
     .chat-container {
+        width: 95%;
+    }
+}
+
+@media (max-width: 1200px) {
+    .chat-container {
+        width: 98%;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        padding: 1rem;
+    }
+    
+    .chat-container {
+        width: 100%;
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
     
     .chat-sidebar {
-        display: none;
+        max-height: 300px;
     }
 }
 
@@ -245,56 +361,6 @@ body {
     transform: scale(1.1);
 }
 
-/* 优化聊天界面 */
-.chat-messages {
-    padding: 1.5rem;
-    background: #f8f9fa;
-}
-
-.message {
-    max-width: 80%;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    position: relative;
-}
-
-.user-message {
-    background-color: #e3f2fd;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
-}
-
-.assistant-message {
-    background-color: white;
-    margin-right: auto;
-    border-bottom-left-radius: 4px;
-}
-
-.message-input {
-    padding: 0.8rem;
-    font-size: 1rem;
-    border: 2px solid var(--border-color);
-    transition: border-color 0.3s;
-}
-
-.message-input:focus {
-    border-color: var(--secondary-color);
-    outline: none;
-}
-
-.send-button {
-    padding: 0.8rem 1.5rem;
-    font-weight: bold;
-    transition: all 0.3s;
-}
-
-.send-button:hover {
-    background-color: #2980b9;
-    transform: translateY(-2px);
-}
-
 /* 调整容器边距，为固定页脚留出空间 */
 .container {
     margin-bottom: 60px;
@@ -353,29 +419,7 @@ body {
     opacity: 0.8;
 }
 
-/* 修改原有的 nav-brand 样式 */
-.nav-brand {
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
 /* 聊天界面优化 */
-.chat-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-    text-align: center;
-}
-
-.chat-header h2 {
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-}
-
-.chat-description {
-    color: #666;
-    font-size: 0.9rem;
-}
-
 .welcome-message {
     text-align: center;
     padding: 2rem;
@@ -476,4 +520,244 @@ body {
 @keyframes bounce {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
+}
+
+/* 文件上传区域样式 */
+.upload-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.file-input {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.upload-button {
+    padding: 0.5rem 1rem;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.upload-button:hover {
+    opacity: 0.9;
+}
+
+/* 文档列表样式 */
+.documents-section {
+    padding: 1rem;
+    height: calc(100vh - var(--header-height) - 3rem);  /* 设置固定高度 */
+    overflow-y: auto;  /* 添加垂直滚动条 */
+}
+
+.documents-list {
+    margin-top: 1rem;
+}
+
+.document-item {
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid var(--secondary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+}
+
+.document-item:hover {
+    background: #e3f2fd;
+    transform: translateX(5px);
+}
+
+.document-name {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.document-time {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.model-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #666;
+}
+
+.model-select {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: white;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.model-select:hover {
+    border-color: var(--secondary-color);
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* 设置区域样式 */
+.settings-section {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.setting-item {
+    margin-bottom: 1.5rem;
+}
+
+.setting-item label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.temperature-slider {
+    flex-grow: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--border-color);
+    border-radius: 2px;
+    outline: none;
+}
+
+.temperature-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--secondary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.temperature-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.setting-description {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+/* 工具区域样式 */
+.tools-section {
+    padding: 1rem;
+}
+
+.tools-list {
+    margin-top: 1rem;
+}
+
+.tool-item {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid var(--secondary-color);
+    transition: all 0.3s;
+}
+
+.tool-item:hover {
+    background: #e3f2fd;
+    transform: translateX(5px);
+}
+
+.tool-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.tool-name {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.tool-description {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.tool-parameters {
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+}
+
+.parameter-title {
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+}
+
+.parameter-item {
+    padding: 0.3rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.parameter-name {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.parameter-desc {
+    color: #666;
+    flex-grow: 1;
+}
+
+.parameter-required {
+    font-size: 0.8rem;
+    color: #e74c3c;
+    padding: 0.1rem 0.3rem;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 3px;
+}
+
+.error-message {
+    color: #e74c3c;
+    text-align: center;
+    padding: 1rem;
 }

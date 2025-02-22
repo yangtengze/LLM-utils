@@ -40,13 +40,21 @@ def raw_chat():
     """原始对话接口"""
     data = request.get_json()
     message = data.get('message', '')
+    temperature = data.get('temperature', 0.7)  # 获取温度参数
     
     try:
         # 添加用户消息到历史
         agent.add_to_history(message, 'user')
         
-        # 直接调用 LLM
+        # 临时更新温度设置
+        original_temp = rag.config['ollama']['temperature']
+        rag.config['ollama']['temperature'] = temperature
+        
+        # 调用 LLM
         response = rag._call_language_model(message)
+        
+        # 恢复原始温度设置
+        rag.config['ollama']['temperature'] = original_temp
         
         # 添加助手回复到历史
         agent.add_to_history(response, 'assistant')
@@ -101,10 +109,17 @@ def get_documents():
     """获取已加载的文档列表"""
     try:
         docs = rag.docs  # 假设 rag 实例有 docs 属性存储文档信息
-        return jsonify([{
-            'file_path': doc.get('file_path', ''),
-            'timestamp': doc.get('timestamp', '')
-        } for doc in docs])
+        # 转换为相对路径
+        documents = []
+        for doc in docs:
+            file_path = doc.get('file_path', '')
+            # 将绝对路径转换为相对于项目根目录的路径
+            relative_path = os.path.relpath(file_path, os.getcwd())
+            documents.append({
+                'file_path': relative_path,
+                'timestamp': doc.get('timestamp', '')
+            })
+        return jsonify(documents)
     except Exception as e:
         return jsonify({
             'status': 'error',
