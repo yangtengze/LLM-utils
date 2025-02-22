@@ -3,7 +3,7 @@ from utils.agent.base_agent import BaseAgent
 from utils.rag import Rag
 from utils.agent.tools import *
 # import utils.multimodal_utils as multimodal_utils
-
+import os
 api = Blueprint('api', __name__)
 # 初始化 Agent 和 RAG
 agent = BaseAgent()
