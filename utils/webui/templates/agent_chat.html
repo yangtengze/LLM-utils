@@ -5,15 +5,47 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
-        <h3>可用工具</h3>
-        <div id="tools-list">
-            <!-- 工具列表将通过 JavaScript 动态加载 -->
+        <div class="settings-section">
+            <h3>对话设置</h3>
+            <div class="setting-item">
+                <label for="temperature-slider">Temperature</label>
+                <div class="slider-container">
+                    <input type="range" 
+                           id="temperature-slider" 
+                           min="0" 
+                           max="2" 
+                           step="0.1" 
+                           value="0.7"
+                           class="temperature-slider">
+                    <span id="temperature-value">0.7</span>
+                </div>
+                <p class="setting-description">
+                    调整值越高，回答越具有创造性；值越低，回答越保守。
+                </p>
+            </div>
+        </div>
+
+        <div class="tools-section">
+            <h3>可用工具</h3>
+            <div id="tools-list" class="tools-list">
+                <!-- 工具列表将通过 JavaScript 动态加载 -->
+            </div>
         </div>
     </div>
     
     <div class="chat-main">
+        <div class="chat-header">
+            <h2>Agent Chat</h2>
+            <p class="chat-description">使用工具增强的智能对话系统</p>
+        </div>
+
         <div class="chat-messages" id="chat-messages">
-            <!-- 消息将通过 JavaScript 动态添加 -->
+            <div class="welcome-message">
+                <i class="fas fa-robot"></i>
+                <h3>欢迎使用 Agent Chat</h3>
+                <p>这是一个增强型对话系统，可以使用各种工具来辅助回答。</p>
+                <p>您可以开始输入任何问题...</p>
+            </div>
         </div>
         
         <div class="chat-input">
@@ -21,10 +53,25 @@
                 <textarea 
                     class="message-input" 
                     id="message-input"
-                    placeholder="输入消息..."
+                    placeholder="输入您的问题..."
                     rows="3"
                 ></textarea>
-                <button class="send-button" id="send-button">发送</button>
+                <button class="send-button" id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                    发送
+                </button>
+            </div>
+            <div class="input-tools">
+                <button class="tool-button" id="clear-button">
+                    <i class="fas fa-trash-alt"></i>
+                    清空对话
+                </button>
+                <div class="model-selector">
+                    <i class="fas fa-microchip"></i>
+                    <select id="model-select" class="model-select">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -35,32 +82,106 @@
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
+const clearButton = document.getElementById('clear-button');
 const toolsList = document.getElementById('tools-list');
+
+// 添加温度滑块相关
+const temperatureSlider = document.getElementById('temperature-slider');
+const temperatureValue = document.getElementById('temperature-value');
+let currentTemperature = 0.7;
+
+// 更新温度值显示
+temperatureSlider.addEventListener('input', (e) => {
+    currentTemperature = parseFloat(e.target.value);
+    temperatureValue.textContent = currentTemperature.toFixed(1);
+});
 
 // 加载可用工具
 async function loadTools() {
     try {
         const response = await fetch('/api/tools');
         const tools = await response.json();
+        
         toolsList.innerHTML = tools.map(tool => `
             <div class="tool-item">
-                <h4>${tool.name}</h4>
-                <p>${tool.description}</p>
+                <div class="tool-header">
+                    <i class="fas fa-tools"></i>
+                    <span class="tool-name">${tool.name}</span>
+                </div>
+                <div class="tool-description">${tool.description}</div>
+                ${tool.parameters ? `
+                    <div class="tool-parameters">
+                        <div class="parameter-title">参数：</div>
+                        ${Object.entries(tool.parameters).map(([name, param]) => `
+                            <div class="parameter-item">
+                                <span class="parameter-name">${name}</span>
+                                <span class="parameter-desc">${param.description}</span>
+                                ${param.required ? '<span class="parameter-required">必填</span>' : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
             </div>
         `).join('');
     } catch (error) {
         console.error('加载工具失败:', error);
+        toolsList.innerHTML = '<div class="error-message">加载工具失败</div>';
     }
 }
+
+// 加载模型配置
+async function loadModelConfig() {
+    try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        if (data.status === 'success') {
+            const modelSelect = document.getElementById('model-select');
+            modelSelect.innerHTML = data.available_models.map(model => 
+                `<option value="${model}" ${model === data.current_model ? 'selected' : ''}>
+                    ${model}
+                </option>`
+            ).join('');
+        }
+    } catch (error) {
+        console.error('加载模型配置失败:', error);
+        document.getElementById('model-select').innerHTML = '<option value="">加载失败</option>';
+    }
+}
+
+// 切换模型
+document.getElementById('model-select').addEventListener('change', async (e) => {
+    const modelName = e.target.value;
+    try {
+        const response = await fetch('/api/config/model', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ model: modelName })
+        });
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+            addMessage(`已切换到模型: ${modelName}`, 'system');
+        } else {
+            addMessage('切换模型失败：' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('切换模型失败:', error);
+        addMessage('切换模型失败，请重试', 'error');
+    }
+});
 
 // 发送消息
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
 
-    // 添加用户消息到界面
     addMessage(message, 'user');
     messageInput.value = '';
+    messageInput.style.height = 'auto';
+
+    const loadingMessage = addLoadingMessage();
 
     try {
         const response = await fetch('/api/chat/agent', {
@@ -68,12 +189,22 @@ async function sendMessage() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ 
+                message,
+                temperature: currentTemperature
+            })
         });
         
         const data = await response.json();
-        addMessage(data.response, 'assistant');
+        loadingMessage.remove();
+        
+        if (data.status === 'success') {
+            addMessage(data.response, 'assistant');
+        } else {
+            addMessage('发送消息失败：' + data.message, 'error');
+        }
     } catch (error) {
+        loadingMessage.remove();
         console.error('发送消息失败:', error);
         addMessage('发送消息失败，请重试', 'error');
     }
@@ -83,9 +214,47 @@ async function sendMessage() {
 function addMessage(content, type) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}-message`;
-    messageDiv.textContent = content;
+    
+    // 添加图标
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'message-icon';
+    iconDiv.innerHTML = type === 'user' ? 
+        '<i class="fas fa-user"></i>' : 
+        type === 'system' ?
+        '<i class="fas fa-info-circle"></i>' :
+        '<i class="fas fa-robot"></i>';
+    messageDiv.appendChild(iconDiv);
+    
+    // 添加内容
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.textContent = content;
+    messageDiv.appendChild(contentDiv);
+    
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    return messageDiv;
+}
+
+// 添加加载中消息到界面
+function addLoadingMessage() {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant-message loading';
+    loadingDiv.innerHTML = `
+        <div class="message-icon">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="message-content">
+            <div class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+    chatMessages.appendChild(loadingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return loadingDiv;
 }
 
 // 事件监听
@@ -98,6 +267,7 @@ messageInput.addEventListener('keypress', (e) => {
 });
 
 // 初始化
+loadModelConfig();
 loadTools();
 </script>
 {% endblock %}

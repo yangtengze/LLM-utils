@@ -28,5 +28,10 @@
     "file_path": "C:\\Users\\yangt\\Desktop\\github\\LLM-utils\\data\\documents\\test.txt",
     "content": "可能还需要考虑扩展性，比如允许用户添加自定义的解析规则，或者在解析过程中插入钩子函数。不过，根据用户的当前需求，可能暂时不需要这么复杂，但设计时可以考虑未来扩展。",
     "timestamp": 1739876233.5202641
+  },
+  {
+    "file_path": "C:\\Users\\yangt\\Desktop\\github\\LLM-utils\\data\\documents\\data.txt",
+    "content": "我是测试类，我来自2025/2/20号晚上。我用来测试rag上传的文件。",
+    "timestamp": 1740058424.6103313
   }
 ]
