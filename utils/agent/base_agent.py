@@ -1,4 +1,6 @@
-from abc import ABC, abstractmethod
+from utils.load_config import configs
+from utils.base_func import parse_response
+from abc import ABC
 from typing import Any, Dict, List, Optional, Union
 from .tools import Tool, ToolRegistry
 import logging
@@ -8,6 +10,7 @@ import requests
 import json
 import re
 import os
+
 
 class BaseAgent(ABC):
     """
@@ -64,7 +67,7 @@ class BaseAgent(ABC):
     """
 
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any] = None):
         """
         初始化Agent
         :param config: 配置字典，包含：
@@ -78,14 +81,26 @@ class BaseAgent(ABC):
                 - temperature: 温度参数
                 - stream: 是否流式响应
         """
-        self.config = config
+        self.default_config = {
+            'maxhistorylength': 100,
+            'statepath': 'data/agentstate.json',
+            'logpath': 'logs',
+            'llm': {
+                'endpoint': configs['ollama']['endpoint'],
+                'model': configs['ollama']['default_model'],
+                'temperature': configs['ollama']['temperature'],
+                'stream': configs['ollama']['stream']
+            }
+        }
+        self.config = config if config is not None else self.default_config
+
         self.tool_registry = ToolRegistry()
         self.history: List[Dict[str, str]] = []  # 修改类型注解
         self.memory: Dict[str, Any] = {}  # 代理记忆/状态存储
-        self.max_history_length = config.get('max_history_length', 100)
-        self.llm_config = config.get('llm', {
+        self.max_history_length = self.config.get('max_history_length', 100)
+        self.llm_config = self.config.get('llm', {
             'endpoint': 'http://localhost:11434',
-            'model': 'llama2',
+            'model': 'deepseek-r1:7b',
             'temperature': 0.7,
             'stream': False
         })
@@ -97,7 +112,7 @@ class BaseAgent(ABC):
         self._load_initial_state()
         
         # 初始化prompt模板
-        self.prompt_template = config.get('prompt_template', self.DEFAULT_PROMPT_TEMPLATE)
+        self.prompt_template = self.config.get('prompt_template', self.DEFAULT_PROMPT_TEMPLATE)
     
     def _setup_logging(self) -> None:
         """配置日志系统"""
@@ -293,7 +308,7 @@ class BaseAgent(ABC):
         :return: 模型响应
         """
         data = {
-            "model": self.llm_config.get('model', 'llama2'),
+            "model": self.llm_config.get('model', 'deepseek-r1:7b'),
             "prompt": prompt,
             "stream": self.llm_config.get('stream', False),
             "options": {
@@ -307,7 +322,7 @@ class BaseAgent(ABC):
             response = requests.post(url, data=json.dumps(data))
             
             if response.status_code == 200:
-                result = response.json().get('response', '')
+                result = parse_response(response, data['stream'])
                 self.logger.debug(f"LLM response: {result}")
                 return result
             else:
