@@ -135,16 +135,14 @@ Linux/Mac:
 ./bin/start-llm-utils.sh
 ```
 
-4. 使用示例
-
-4.1 raw对话
+## 4. 使用示例
+### 4.1 raw对话
 ```python
 from utils.load_config import configs
 from utils.base_func import parse_response
 import requests
 import json
 prompt = '你好啊，你是谁？'
-
 llm_model = configs['ollama']['default_model']
 data = {
     "model": llm_model,
@@ -166,41 +164,33 @@ try:
 except Exception as e:
     error_msg = f"LLM调用出错: {str(e)}"
     print(error_msg)
-
 ```
-4.2 rag 对话
-
+### 4.2 rag 对话
 ```python
 from utils.rag.rag import Rag
-
 # 创建 Rag
 rag = Rag()
 rag.load_documents(rag.files)
-
 query = "你是谁啊？你叫什么？"
 try:
     response = rag.generate_response(query)
     print(response)
 except Exception as e:
-  error_msg = f"LLM调用出错: {str(e)}"
-  print(error_msg)
-
+    error_msg = f"LLM调用出错: {str(e)}"
+    print(error_msg)
 ```
-4.3 agent对话
+### 4.3 agent对话
 ```python
 from utils.agent import BaseAgent
 from utils.agent.tools import *
-
 # 创建 Agent
 agent = BaseAgent()
-
 # 注册工具
 agent.register_tool(Tool(
     name="get_local_ip",
     description="获取本机的IP地址信息",
     func=get_local_ip
 ))
-
 query = "你好，请帮我查看本机IP地址"
 # 运行对话
 try:
