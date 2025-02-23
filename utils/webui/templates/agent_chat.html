@@ -199,7 +199,8 @@ async function sendMessage() {
         loadingMessage.remove();
         
         if (data.status === 'success') {
-            addMessage(data.response, 'assistant');
+            const formattedResponse = formatMessage(data.response);
+            addMessage(formattedResponse, 'assistant');
         } else {
             addMessage('发送消息失败：' + data.message, 'error');
         }
@@ -228,7 +229,7 @@ function addMessage(content, type) {
     // 添加内容
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.textContent = content;
+    contentDiv.innerHTML = content;
     messageDiv.appendChild(contentDiv);
     
     chatMessages.appendChild(messageDiv);
@@ -255,6 +256,13 @@ function addLoadingMessage() {
     chatMessages.appendChild(loadingDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     return loadingDiv;
+}
+
+// 格式化消息
+function formatMessage(content) {
+    // 处理 think 标签
+    content = content.replace(/<think>([\s\S]*?)<\/think>/g, '<div class="think">thinking: $1</div>');
+    return content;
 }
 
 // 事件监听

@@ -556,7 +556,7 @@ body {
 
 .upload-button:hover {
     opacity: 0.9;
-}
+}   
 
 /* 文档列表样式 */
 .documents-section {
@@ -760,4 +760,23 @@ body {
     color: #e74c3c;
     text-align: center;
     padding: 1rem;
+}
+
+/* 思考内容样式 */
+.message-content .think {
+    border-left: 4px solid #95a5a6;  /* 左边框，类似markdown引用 */
+    padding-left: 1rem;
+    margin: 0.5rem 0;
+    color: #7f8c8d;  /* 稍微淡一点的颜色 */
+    font-style: italic;
+    background-color: rgba(236, 240, 241, 0.5);  /* 浅灰色背景 */
+    padding: 0.8rem 1rem;
+    border-radius: 4px;
+    display: block;
+}
+
+.user-message .message-content .think {
+    border-left-color: rgba(255, 255, 255, 0.5);  /* 用户消息中的think样式调整 */
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
 }

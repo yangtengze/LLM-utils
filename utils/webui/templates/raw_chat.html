@@ -158,7 +158,9 @@ async function sendMessage() {
         loadingMessage.remove();
         
         if (data.status === 'success') {
-            addMessage(data.response, 'assistant');
+            // addMessage(data.response, 'assistant');
+            const formattedResponse = formatMessage(data.response);
+            addMessage(formattedResponse, 'assistant');
         } else {
             addMessage('发送消息失败：' + data.message, 'error');
         }
@@ -185,7 +187,14 @@ function addMessage(content, type) {
     // 添加内容
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.textContent = content;
+    // contentDiv.textContent = content;
+    // if (type === 'assistant') {
+    //     // 为AI回复创建一个空的内容div，后续用于流式输出
+    //     contentDiv.innerHTML = '';
+    //     streamContent(contentDiv, content);
+    // } else {
+    contentDiv.innerHTML = content;
+    // }
     messageDiv.appendChild(contentDiv);
     
     chatMessages.appendChild(messageDiv);
@@ -193,6 +202,37 @@ function addMessage(content, type) {
     return messageDiv;
 }
 
+
+// // 流式输出内容
+// function streamContent(container, content) {
+//     let index = 0;
+//     const chars = content.split('');
+    
+//     function appendNextChar() {
+//         if (index < chars.length) {
+//             // 检查是否遇到HTML标签
+//             if (chars[index] === '<') {
+//                 // 寻找标签结束位置
+//                 let tagContent = '<';
+//                 let j = index + 1;
+//                 while (j < chars.length && chars[j] !== '>') {
+//                     tagContent += chars[j];
+//                     j++;
+//                 }
+//                 tagContent += '>';
+//                 container.innerHTML += tagContent;
+//                 index = j + 1;
+//             } else {
+//                 container.innerHTML += chars[index];
+//                 index++;
+//             }
+//             chatMessages.scrollTop = chatMessages.scrollHeight;
+//             setTimeout(appendNextChar, 30); // 控制打字速度
+//         }
+//     }
+    
+//     appendNextChar();
+// }
 // 添加加载动画
 function addLoadingMessage() {
     const loadingDiv = document.createElement('div');
@@ -246,6 +286,32 @@ messageInput.addEventListener('keypress', (e) => {
 
 // 初始化
 loadModelConfig();
+
+function formatMessage(content) {
+    // 处理 think 标签
+    content = content.replace(/<think>([\s\S]*?)<\/think>/g, '<div class="think">thinking: $1</div>');
+    return content;
+}
+
+function appendMessage(role, content) {
+    const messagesDiv = document.querySelector('.chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}-message`;
+    
+    const formattedContent = formatMessage(content);
+    
+    messageDiv.innerHTML = `
+        <div class="message-icon">
+            ${role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>'}
+        </div>
+        <div class="message-content">
+            ${formattedContent}
+        </div>
+    `;
+    
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 </script>
 {% endblock %}
 {% endblock %}

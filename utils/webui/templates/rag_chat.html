@@ -135,12 +135,10 @@ async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
 
-    // 添加用户消息到界面
     addMessage(message, 'user');
     messageInput.value = '';
     messageInput.style.height = 'auto';
 
-    // 显示加载动画
     const loadingMessage = addLoadingMessage();
 
     try {
@@ -153,16 +151,15 @@ async function sendMessage() {
         });
         
         const data = await response.json();
-        // 移除加载动画
         loadingMessage.remove();
         
         if (data.status === 'success') {
-            addMessage(data.response, 'assistant');
+            const formattedResponse = formatMessage(data.response);
+            addMessage(formattedResponse, 'assistant');
         } else {
             addMessage('发送消息失败：' + data.message, 'error');
         }
     } catch (error) {
-        // 移除加载动画
         loadingMessage.remove();
         console.error('发送消息失败:', error);
         addMessage('发送消息失败，请重试', 'error');
@@ -174,7 +171,6 @@ function addMessage(content, type) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}-message`;
     
-    // 添加图标
     const iconDiv = document.createElement('div');
     iconDiv.className = 'message-icon';
     iconDiv.innerHTML = type === 'user' ? 
@@ -184,10 +180,9 @@ function addMessage(content, type) {
         '<i class="fas fa-robot"></i>';
     messageDiv.appendChild(iconDiv);
     
-    // 添加内容
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.textContent = content;
+    contentDiv.innerHTML = content;
     messageDiv.appendChild(contentDiv);
     
     chatMessages.appendChild(messageDiv);
@@ -291,6 +286,12 @@ document.getElementById('model-select').addEventListener('change', async (e) => 
 // 在初始化部分添加
 loadModelConfig();
 loadDocuments();
+
+function formatMessage(content) {
+    // 处理 think 标签
+    content = content.replace(/<think>([\s\S]*?)<\/think>/g, '<div class="think">thinking: $1</div>');
+    return content;
+}
 </script>
 {% endblock %}
 {% endblock %} 
