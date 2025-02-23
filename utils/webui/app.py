@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template
 from flask_cors import CORS
 from .routes.api_routes import api
 from .routes.chat_routes import chat
