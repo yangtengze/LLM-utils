@@ -1,14 +1,8 @@
 from docx import Document
-import yaml
-from pathlib import Path
 from typing import List, Union
 import re
+from utils.load_config import configs
 
-def load_config(config_name: str):
-    config_path = Path("configs") / f"{config_name}.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
-    
 class DocxLoader:
     """
     用于加载.docx文件的类，包括段落和表格内容
@@ -18,7 +12,7 @@ class DocxLoader:
         """
         初始化 DocxLoader
         """
-        self.config = load_config('configs')
+        self.config = configs
         self.chunk_size = self.config['rag']['document_loader']['chunk_size']
         self.chunk_overlap = self.config['rag']['document_loader']['chunk_overlap']
 
@@ -111,4 +105,4 @@ if __name__ == '__main__':
     filepath = 'data/tmp/1.docx'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
-        print(f"Chunk {i + 1}: {chunk}")
+        print(f"Chunk {i + 1}: {type(chunk)}")
