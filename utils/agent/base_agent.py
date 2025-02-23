@@ -83,7 +83,7 @@ class BaseAgent(ABC):
         """
         self.default_config = {
             'maxhistorylength': 100,
-            'statepath': 'data/agentstate.json',
+            'state_path': 'data/agent_state.json',
             'logpath': 'logs',
             'llm': {
                 'endpoint': configs['ollama']['endpoint'],
