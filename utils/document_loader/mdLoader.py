@@ -1,14 +1,10 @@
 import re
 import yaml
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 import markdown
 from bs4 import BeautifulSoup
-
-def load_config(config_name: str):
-    config_path = Path("configs") / f"{config_name}.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+from utils.load_config import configs
 
 class MDLoader:
     """
@@ -18,7 +14,7 @@ class MDLoader:
     
     def __init__(self):
         """初始化 MDLoader"""
-        self.config = load_config('configs')
+        self.config = configs
         self.chunk_size = self.config['rag']['document_loader']['chunk_size']
         self.chunk_overlap = self.config['rag']['document_loader']['chunk_overlap']
         self.file_path = None

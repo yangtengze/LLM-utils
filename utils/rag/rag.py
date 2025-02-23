@@ -1,4 +1,4 @@
-from utils.document_loader import CSVLoader, MDLoader, PDFLoader, TXTLoader
+from utils.document_loader import CSVLoader, MDLoader, PDFLoader, TXTLoader, DocxLoader
 from utils.load_config import configs
 from utils.base_func import parse_response
 from typing import List, Dict
@@ -141,6 +141,8 @@ class Rag:
                         # 获取文件加载器
                         if file_path.endswith('.csv'):
                             loader = CSVLoader()
+                        elif file_path.endswith('.docx'):
+                            loader = DocxLoader()
                         elif file_path.endswith('.md'):
                             loader = MDLoader()
                         elif file_path.endswith('.pdf'):

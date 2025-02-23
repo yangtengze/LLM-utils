@@ -1,13 +1,8 @@
 import fitz  # PyMuPDF
-import yaml
-from pathlib import Path
 from typing import List
 import re
+from utils.load_config import configs
 
-def load_config(config_name: str):
-    config_path = Path("configs") / f"{config_name}.yaml"
-    with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
 
 class PDFLoader:
     """
@@ -17,7 +12,7 @@ class PDFLoader:
     
     def __init__(self):
         """初始化 PDFLoader"""
-        self.config = load_config('configs')
+        self.config = configs
         self.chunk_size = self.config['rag']['document_loader']['chunk_size']
         self.chunk_overlap = self.config['rag']['document_loader']['chunk_overlap']
 
@@ -111,4 +106,4 @@ if __name__ == '__main__':
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         if i == 1:
-            print(f"Chunk {i + 1}: {chunk}")
+            print(f"Chunk {i + 1}: {(chunk)}")

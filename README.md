@@ -9,6 +9,11 @@
 | 2025/2/22  23:48 | 0.1.1   | WebUI 优化|
 
 
+**附上ollama快速下载 LLM-utils/download_model.ps1**
+*使用方法*
+```bash
+./download_model.ps1 -model "deepseek-r1:1.5b"
+```
 ## 项目结构
 
 This is an utils based on LLMs such as RAG、Agent tools、WebUI etc. 

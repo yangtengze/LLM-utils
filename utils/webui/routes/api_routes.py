@@ -3,6 +3,7 @@ from utils.agent.base_agent import BaseAgent
 from utils.rag import Rag
 from utils.agent.tools import *
 from utils.load_config import configs
+from werkzeug.utils import secure_filename
 import os
 
 # import utils.multimodal_utils as multimodal_utils
@@ -11,6 +12,7 @@ api = Blueprint('api', __name__)
 agent = BaseAgent()
 
 rag = Rag()
+rag.load_documents(rag.files)
 
 # 注册工具
 agent.register_tool(Tool(
@@ -120,10 +122,14 @@ def get_documents():
             file_path = doc.get('file_path', '')
             # 将绝对路径转换为相对于项目根目录的路径
             relative_path = os.path.relpath(file_path, os.getcwd())
-            documents.append({
-                'file_path': relative_path,
-                'timestamp': doc.get('timestamp', '')
-            })
+            
+            # 检查路径是否已经存在于列表中
+            if not any(doc['file_path'] == relative_path for doc in documents):
+                documents.append({
+                    'file_path': relative_path,
+                    'timestamp': doc.get('timestamp', '')
+                })
+        
         return jsonify(documents)
     except Exception as e:
         return jsonify({
