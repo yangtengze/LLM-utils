@@ -71,7 +71,9 @@
 </div>
 
 {% block extra_js %}
-<script>
+<script type="module">
+import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea } from '/static/js/chat-func.js';
+
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
@@ -88,50 +90,7 @@ temperatureSlider.addEventListener('input', (e) => {
     temperatureValue.textContent = currentTemperature.toFixed(1);
 });
 
-// 加载模型配置
-async function loadModelConfig() {
-    try {
-        const response = await fetch('/api/config');
-        const data = await response.json();
-        if (data.status === 'success') {
-            const modelSelect = document.getElementById('model-select');
-            modelSelect.innerHTML = data.available_models.map(model => 
-                `<option value="${model}" ${model === data.current_model ? 'selected' : ''}>
-                    ${model}
-                </option>`
-            ).join('');
-        }
-    } catch (error) {
-        console.error('加载模型配置失败:', error);
-        document.getElementById('model-select').innerHTML = '<option value="">加载失败</option>';
-    }
-}
-
-// 切换模型
-document.getElementById('model-select').addEventListener('change', async (e) => {
-    const modelName = e.target.value;
-    try {
-        const response = await fetch('/api/config/model', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ model: modelName })
-        });
-        
-        const data = await response.json();
-        if (data.status === 'success') {
-            addMessage(`已切换到模型: ${modelName}`, 'system');
-        } else {
-            addMessage('切换模型失败：' + data.message, 'error');
-        }
-    } catch (error) {
-        console.error('切换模型失败:', error);
-        addMessage('切换模型失败，请重试', 'error');
-    }
-});
-
-// 修改发送消息函数，添加temperature参数
+// 修改发送消息函数，添加流式输出
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
@@ -158,7 +117,8 @@ async function sendMessage() {
         loadingMessage.remove();
         
         if (data.status === 'success') {
-            addMessage(data.response, 'assistant');
+            // 使用流式输出
+            addMessage(data.response, 'assistant', true);
         } else {
             addMessage('发送消息失败：' + data.message, 'error');
         }
@@ -167,51 +127,6 @@ async function sendMessage() {
         console.error('发送消息失败:', error);
         addMessage('发送消息失败，请重试', 'error');
     }
-}
-
-// 添加消息到界面
-function addMessage(content, type) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}-message`;
-    
-    // 添加图标
-    const iconDiv = document.createElement('div');
-    iconDiv.className = 'message-icon';
-    iconDiv.innerHTML = type === 'user' ? 
-        '<i class="fas fa-user"></i>' : 
-        '<i class="fas fa-robot"></i>';
-    messageDiv.appendChild(iconDiv);
-    
-    // 添加内容
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.textContent = content;
-    messageDiv.appendChild(contentDiv);
-    
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    return messageDiv;
-}
-
-// 添加加载动画
-function addLoadingMessage() {
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'message assistant-message loading';
-    loadingDiv.innerHTML = `
-        <div class="message-icon">
-            <i class="fas fa-robot"></i>
-        </div>
-        <div class="message-content">
-            <div class="loading-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-    `;
-    chatMessages.appendChild(loadingDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    return loadingDiv;
 }
 
 // 清空对话
@@ -226,16 +141,9 @@ function clearChat() {
     `;
 }
 
-// 自动调整输入框高度
-function autoResizeTextarea() {
-    messageInput.style.height = 'auto';
-    messageInput.style.height = messageInput.scrollHeight + 'px';
-}
-
 // 事件监听
 sendButton.addEventListener('click', sendMessage);
 clearButton.addEventListener('click', clearChat);
-
 messageInput.addEventListener('input', autoResizeTextarea);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -246,6 +154,7 @@ messageInput.addEventListener('keypress', (e) => {
 
 // 初始化
 loadModelConfig();
+setupModelSwitching();
 </script>
 {% endblock %}
 {% endblock %}

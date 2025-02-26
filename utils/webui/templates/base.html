@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LLM Utils - 智能对话工具集">
     <title>{% block title %}LLM Utils{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" as="style">
+    
+    <!-- 异步加载非关键CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
     {% block extra_css %}{% endblock %}
     <style>
         /* 添加全局过渡效果 */
@@ -71,7 +79,8 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- 使用 defer 延迟加载非关键JS -->
+    <script src="{{ url_for('static', filename='js/chat-func.js') }}" type="module" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
