@@ -102,7 +102,7 @@ class PDFLoader:
 
 if __name__ == '__main__':
     loader = PDFLoader()
-    filepath = 'data/tmp/llama2/llama2.pdf'
+    filepath = 'data/documents/llama2/llama2.pdf'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         if i == 1:

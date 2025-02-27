@@ -87,10 +87,16 @@ const chatMessages = document.getElementById('chat-messages');
 const clearButton = document.getElementById('clear-button');
 const toolsList = document.getElementById('tools-list');
 
-// 添加温度滑块相关
+// 添加温度滑块
 const temperatureSlider = document.getElementById('temperature-slider');
 const temperatureValue = document.getElementById('temperature-value');
 let currentTemperature = 0.7;
+
+// 更新温度值显示
+temperatureSlider.addEventListener('input', (e) => {
+    currentTemperature = parseFloat(e.target.value);
+    temperatureValue.textContent = currentTemperature.toFixed(1);
+});
 
 // 加载可用工具
 async function loadTools() {
@@ -125,13 +131,7 @@ async function loadTools() {
     }
 }
 
-// 更新温度值显示
-temperatureSlider.addEventListener('input', (e) => {
-    currentTemperature = parseFloat(e.target.value);
-    temperatureValue.textContent = currentTemperature.toFixed(1);
-});
-
-// 修改发送消息函数
+// 发送消息函数
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
@@ -167,7 +167,7 @@ async function sendMessage() {
     }
 }
 
-// 清空对话
+// 清空对话 agent_chat.html
 function clearChat() {
     chatMessages.innerHTML = `
         <div class="welcome-message">

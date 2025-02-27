@@ -7,7 +7,8 @@ class TXTLoader:
             data = f.read()
         format_data = re.split(r'\n{2,}', data)
         return format_data
-# if __name__ == "__main__":
-#     loader = TXTLoader()
-#     data = loader.load("data/documents/tmp_store")
-#     print(data)
+    
+if __name__ == "__main__":
+    loader = TXTLoader()
+    data = loader.load("data/documents/data.txt")
+    print(data)

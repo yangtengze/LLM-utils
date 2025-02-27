@@ -52,7 +52,6 @@ function showSlides() {
     for (let i = 0; i < slides.length; i++) {
         slides[i].style.opacity = "0";
     }
-    
     // 显示下一张
     slideIndex = (slideIndex + 1) % slides.length;
     slides[slideIndex].style.opacity = "1";

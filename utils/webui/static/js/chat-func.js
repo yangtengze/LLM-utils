@@ -1,8 +1,6 @@
-// 创建新文件，存放共用的聊天功能
+// 共用的标签变量
 const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
-const clearButton = document.getElementById('clear-button');
 
 // 共用的添加消息函数
 function addMessage(content, type, streaming = false) {
@@ -42,7 +40,7 @@ function formatMessage(content) {
     return content.replace(/<think>([\s\S]*?)<\/think>/g, '<div class="think">thinking: $1</div>');
 }
 
-// 添加流式输出函数
+// 共用的添加流式输出函数
 function streamMessage(content, messageDiv) {
     const contentDiv = messageDiv.querySelector('.message-content');
     let index = 0;
@@ -108,7 +106,7 @@ function addLoadingMessage() {
     return loadingDiv;
 }
 
-// 加载模型配置
+// 共用的加载模型配置
 async function loadModelConfig() {
     try {
         const response = await fetch('/api/config');
@@ -127,7 +125,7 @@ async function loadModelConfig() {
     }
 }
 
-// 切换模型
+// 共用的切换模型
 function setupModelSwitching() {
     document.getElementById('model-select').addEventListener('change', async (e) => {
         const modelName = e.target.value;
@@ -153,7 +151,7 @@ function setupModelSwitching() {
     });
 }
 
-// 自动调整输入框高度
+// 共用的自动调整输入框高度
 function autoResizeTextarea() {
     messageInput.style.height = 'auto';
     messageInput.style.height = messageInput.scrollHeight + 'px';

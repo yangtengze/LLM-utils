@@ -72,6 +72,7 @@
 
 {% block extra_js %}
 <script type="module">
+
 import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea } from '/static/js/chat-func.js';
 
 const messageInput = document.getElementById('message-input');
@@ -79,7 +80,7 @@ const sendButton = document.getElementById('send-button');
 const chatMessages = document.getElementById('chat-messages');
 const clearButton = document.getElementById('clear-button');
 
-// 添加温度滑块相关
+// 温度滑块
 const temperatureSlider = document.getElementById('temperature-slider');
 const temperatureValue = document.getElementById('temperature-value');
 let currentTemperature = 0.7;
@@ -90,7 +91,7 @@ temperatureSlider.addEventListener('input', (e) => {
     temperatureValue.textContent = currentTemperature.toFixed(1);
 });
 
-// 修改发送消息函数，添加流式输出
+// 发送消息函数
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
@@ -129,7 +130,7 @@ async function sendMessage() {
     }
 }
 
-// 清空对话
+// 清空对话 raw_chat.html
 function clearChat() {
     chatMessages.innerHTML = `
         <div class="welcome-message">

@@ -6,9 +6,8 @@
     --background-color: #f5f6fa;
     --text-color: #2c3e50;
     --border-color: #dcdde1;
-    --sidebar-width: 300px;
-    --header-height: 60px;
-    --footer-height: 52px;  /* 添加footer高度变量 */
+    --header-height: 60px; /* 页顶高度 */
+    --footer-height: 52px; /* 页脚高度 */
 }
 
 * {
@@ -24,7 +23,12 @@ body {
     background-color: var(--background-color);
 }
 
-/* 导航栏 */
+/* --------------------------------------- */
+/* 下面是整个base.html的样式（页顶和页脚样式等） */
+/* --------------------------------------- */
+
+
+/* 顶部导航区域 */
 .navbar {
     background-color: var(--primary-color);
     padding: 1rem 2rem;
@@ -39,6 +43,16 @@ body {
     color: white;
     font-size: 1.5rem;
     font-weight: bold;
+}
+
+.brand-link {
+    color: white;
+    text-decoration: none;
+    transition: opacity 0.3s;
+}
+
+.brand-link:hover {
+    opacity: 0.8;
 }
 
 .nav-links {
@@ -58,215 +72,82 @@ body {
     background-color: var(--secondary-color);
 }
 
-/* 主容器布局 */
 .main-container {
     padding: 1.5rem 2rem;  /* 上下留出1.5rem间距，左右2rem */
 }   
 
-/* 聊天容器布局优化 */
-.chat-container {
-    max-width: 1400px;  /* 稍微增加最大宽度 */
-    width: 90%;        /* 占据90%的视窗宽度 */
-    margin: 0 auto;    /* 水平居中 */
-    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 3rem);  /* 减去navbar、footer高度和padding */
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 1.5rem;
-    background: transparent;  /* 移除背景色 */
-}
-
-/* 侧边栏和主聊天区域样式优化 */
-.chat-sidebar,
-.chat-main {
-    background: white;
-    border-radius: 12px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-/* 聊天区域样式优化 */
-.chat-main {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - var(--header-height) - var(--footer-height) - 4rem);  /* 减去navbar、footer高度和padding */
-}
-
-.chat-header {
-    padding: 1rem;
-    background: white;
-    border-bottom: 1px solid var(--border-color);
+/* 页脚区域 */
+.footer {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    z-index: 2;
 }
 
-.chat-header h2 {
-    font-size: 1.3rem;
-    margin-bottom: 0.3rem;
-}
-
-.chat-description {
-    font-size: 0.85rem;
-}
-
-.chat-messages {
-    flex-grow: 1;
-    padding: 1.5rem;
-    overflow-y: auto;
-    background: var(--background-color);
-    height: auto;  /* 移除固定高度，让它根据flex自动调整 */
-}
-
-.message {
-    max-width: 80%;
-    margin: 0.8rem 0;
+.footer-content {
     display: flex;
-    align-items: flex-start;
-    gap: 0.8rem;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.user-message {
-    margin-left: auto;
-    flex-direction: row-reverse;
-}
-
-.message-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    color: white;
-    flex-shrink: 0;
-}
-
-.user-message .message-icon {
-    background: var(--primary-color);
-}
-
-.assistant-message .message-icon {
-    background: var(--secondary-color);
-}
-
-.system-message .message-icon {
-    background: var(--accent-color);
-}
-
-.message-content {
-    padding: 0.8rem;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    line-height: 1.4;
-    word-break: break-word;  /* 添加此属性防止长文本溢出 */
-}
-
-.user-message .message-content {
-    background: var(--primary-color);
-    color: white;
-}
-
-/* 输入区域样式优化 */
-.chat-input {
-    margin-top: auto;  /* 确保输入框始终在底部 */
-    height: auto;
-    padding: 0.8rem;
-    background: white;
-    border-top: 1px solid var(--border-color);
-}
-
-.input-group {
-    display: flex;
-    gap: 0.8rem;
-    margin-bottom: 0.5rem;
-}
-
-.message-input {
-    padding: 0.6rem;
-    flex-grow: 1;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    resize: none;
-    min-height: 20px;
-    max-height: 100px;
-    font-family: inherit;
-    line-height: 1.5;
-}
-
-.message-input:focus {
-    outline: none;
-    border-color: var(--secondary-color);
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-.send-button {
-    padding: 0 1rem;
-    background: var(--secondary-color);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    transition: all 0.3s;
+    gap: 1rem;
 }
 
-.send-button:hover {
-    background: #2980b9;
-    transform: translateY(-1px);
+.author {
+    font-size: 1rem;
 }
 
-/* 工具栏样式优化 */
-.input-tools {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.3rem 0;
+.author a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    transition: color 0.3s;
 }
 
-/* 动画效果 */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+.author a:hover {
+    color: #5dade2;
 }
 
-/* 响应式设计优化 */
-@media (max-width: 1600px) {
-    .chat-container {
-        width: 95%;
-    }
+.github-link {
+    color: white;
+    font-size: 1.5rem;
+    transition: transform 0.3s;
 }
 
-@media (max-width: 1200px) {
-    .chat-container {
-        width: 98%;
-    }
+.github-link:hover {
+    transform: scale(1.1);
 }
 
-@media (max-width: 768px) {
-    .main-container {
-        padding: 1rem;
-    }
-    
-    .chat-container {
-        width: 100%;
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    .chat-sidebar {
-        max-height: 300px;
-        overflow-y: auto;
-    }
+/* --------------------------------------- */
+/* 下面是整个index.html的样式（主页面的中间白色选择chat类型区域） */
+/* --------------------------------------- */
 
-    .feature-card {
-        margin: 1rem 0;
-    }
+.background-slideshow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
 }
 
-/* 主页样式 */
+.slide {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 2s ease-in-out;
+}
+
+.slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.6);  /* 使背景暗一点，让内容更清晰 */
+}
+
 .welcome-container {
     position: relative;
     z-index: 1;
@@ -324,108 +205,71 @@ body {
     opacity: 0.9;
 }
 
-/* 页脚样式 */
-.footer {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 1rem 0;
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    text-align: center;
-    z-index: 2;
+/* --------------------------------------- */
+/* 下面是整个*_chat.html的聊天页面（左侧会话设置和右侧聊天框）样式 */
+/* --------------------------------------- */
+
+
+/* 聊天容器布局 *_chat.html */
+.chat-container {
+    max-width: 1400px;  /* 稍微增加最大宽度 */
+    width: 90%;        /* 占据90%的视窗宽度 */
+    margin: 0 auto;    /* 水平居中 */
+    min-height: calc(100vh - var(--header-height) - var(--footer-height) - 3rem);  /* 减去navbar、footer高度和padding */
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1.5rem;
+    background: transparent;  /* 移除背景色 */
 }
 
-.footer-content {
+/* 左侧导航区域与右侧对话区域 */
+.chat-sidebar,
+.chat-main {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.chat-sidebar {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    height: calc(100vh - var(--header-height) - var(--footer-height) - 4rem);  /* 减去navbar、footer高度和padding */
 }
 
-.author {
-    font-size: 1rem;
+.chat-main {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--header-height) - var(--footer-height) - 4rem);  /* 减去navbar、footer高度和padding */
 }
-
-.author a {
-    color: var(--secondary-color);
-    text-decoration: none;
-    transition: color 0.3s;
-}
-
-.author a:hover {
-    color: #5dade2;
-}
-
-.github-link {
-    color: white;
-    font-size: 1.5rem;
-    transition: transform 0.3s;
-}
-
-.github-link:hover {
-    transform: scale(1.1);
-}
-
-/* 调整容器边距，为固定页脚留出空间 */
-.container {
-    margin-bottom: 60px;
-    overflow-y: auto;
-}
-
-/* 文档列表样式 */
-.document-item {
+/* 初始右侧聊天框标题区域 */
+.chat-header {
     padding: 1rem;
-    margin-bottom: 0.5rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid var(--secondary-color);
-    transition: all 0.3s;
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.document-item:hover {
-    background: #e3f2fd;
-    transform: translateX(5px);
+.chat-header h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.3rem;
 }
 
-/* 背景轮播样式 */
-.background-slideshow {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    overflow: hidden;
+.chat-description {
+    font-size: 0.85rem;
 }
 
-.slide {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    transition: opacity 2s ease-in-out;
+/* 初始聊天区域中的欢迎区域 */
+
+.chat-messages {
+    flex-grow: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    background: var(--background-color);
+    height: auto;  /* 移除固定高度，让它根据flex自动调整 */
 }
 
-.slide img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: brightness(0.6);  /* 使背景暗一点，让内容更清晰 */
-}
-
-/* 在导航栏样式部分添加 */
-.brand-link {
-    color: white;
-    text-decoration: none;
-    transition: opacity 0.3s;
-}
-
-.brand-link:hover {
-    opacity: 0.8;
-}
-
-/* 聊天界面优化 */
 .welcome-message {
     text-align: center;
     padding: 2rem;
@@ -443,17 +287,37 @@ body {
     color: var(--primary-color);
 }
 
+/* .error-message {
+    color: #e74c3c;
+    text-align: center;
+    padding: 1rem;
+} */
+
+/* 聊天框 */
 .message {
+    max-width: 80%;
+    margin: 0.8rem 0;
     display: flex;
     align-items: flex-start;
+    /* gap: 0.8rem; */
     gap: 1rem;
+    animation: fadeIn 0.3s ease-out;
 }
 
+.user-message {
+    margin-left: auto;
+    flex-direction: row-reverse;
+}
+
+/* 聊天对话头像 */
 .message-icon {
+    /* width: 32px;
+    height: 32px; */
     width: 40px;
     height: 40px;
-    border-radius: 50%;
     background: var(--secondary-color);
+
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -465,18 +329,124 @@ body {
     background: var(--primary-color);
 }
 
+.assistant-message .message-icon {
+    background: var(--secondary-color);
+}
+
+.system-message .message-icon {
+    background: var(--accent-color);
+}
+
+/* 聊天内容 */
 .message-content {
-    flex-grow: 1;
+    /* flex-grow: 1; */
     padding: 1rem;
+    /* padding: 0.8rem; */
     background: white;
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    line-height: 1.4;
+    word-break: break-word;  /* 添加此属性防止长文本溢出 */
 }
 
+.user-message .message-content {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* 对话助手加载动画 */
+.loading-dots {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    background: var(--secondary-color);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+/* .user-message .message-content .think {
+    border-left-color: rgba(255, 255, 255, 0.5); 
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+}; */
+
+.message-content .think {
+    border-left: 4px solid #95a5a6;  /* 左边框，类似markdown引用 */
+    padding-left: 1rem;
+    margin: 0.5rem 0;
+    color: #7f8c8d;  /* 稍微淡一点的颜色 */
+    font-style: italic;
+    background-color: rgba(236, 240, 241, 0.5);  /* 浅灰色背景 */
+    padding: 0.8rem 1rem;
+    border-radius: 4px;
+    display: block;
+}
+
+/* 输入区域 */
+.chat-input {
+    margin-top: auto;  /* 确保输入框始终在底部 */
+    height: auto;
+    padding: 0.8rem;
+    background: white;
+    border-top: 1px solid var(--border-color);
+}
+
+.input-group {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.message-input {
+    padding: 0.6rem;
+    flex-grow: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    resize: none;
+    min-height: 20px;
+    max-height: 100px;
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+.message-input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.send-button {
+    padding: 0 1rem;
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+}
+
+.send-button:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+/* 输入区域下方的工具区域 */
 .input-tools {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* padding: 0.3rem 0; */
     padding: 0.5rem 1rem;
     border-top: 1px solid var(--border-color);
 }
@@ -495,112 +465,6 @@ body {
 
 .tool-button:hover {
     color: var(--primary-color);
-}
-
-.model-info {
-    color: #666;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-/* 加载动画 */
-.loading-dots {
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.5rem;
-}
-
-.loading-dots span {
-    width: 8px;
-    height: 8px;
-    background: var(--secondary-color);
-    border-radius: 50%;
-    animation: bounce 1.4s infinite ease-in-out both;
-}
-
-.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes bounce {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1); }
-}
-
-/* 文件上传区域样式 */
-.upload-section {
-    margin-bottom: 2rem;
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.upload-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.file-input {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-}
-
-.upload-button {
-    padding: 0.5rem 1rem;
-    background-color: var(--secondary-color);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.upload-button:hover {
-    opacity: 0.9;
-}   
-
-/* 文档列表样式 */
-.documents-section {
-    padding: 1rem;
-    height: calc(100vh - var(--header-height) - 3rem);  /* 设置固定高度 */
-    overflow-y: auto;  /* 添加垂直滚动条 */
-}
-
-.documents-list {
-    margin-top: 1rem;
-}
-
-.document-item {
-    padding: 0.8rem;
-    margin-bottom: 0.5rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border-left: 4px solid var(--secondary-color);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: all 0.3s;
-}
-
-.document-item:hover {
-    background: #e3f2fd;
-    transform: translateX(5px);
-}
-
-.document-name {
-    flex-grow: 1;
-    font-size: 0.9rem;
-    color: var(--text-color);
-}
-
-.document-time {
-    font-size: 0.8rem;
-    color: #666;
 }
 
 .model-selector {
@@ -630,6 +494,58 @@ body {
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
 }
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+/* 响应式设计优化 */
+@media (max-width: 1600px) {
+    .chat-container {
+        width: 95%;
+    }
+}
+
+@media (max-width: 1200px) {
+    .chat-container {
+        width: 98%;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        padding: 1rem;
+    }
+    
+    .chat-container {
+        width: 100%;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .chat-sidebar {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .feature-card {
+        margin: 1rem 0;
+    }
+}
+
+
+/* --------------------------------------- */
+/* 下面是各个*_chat.html的各自的样式 */
+/* --------------------------------------- */
+
+/* raw_chat.html & agent_chat.html */
 
 /* 设置区域样式 */
 .settings-section {
@@ -683,6 +599,91 @@ body {
     color: #666;
     margin-top: 0.5rem;
 }
+
+
+/* rag_chat.html */
+
+/* 文件上传区域样式 */
+.upload-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.file-input {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.upload-button {
+    padding: 0.5rem 1rem;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.upload-button:hover {
+    opacity: 0.9;
+}   
+
+/* 文档列表样式 */
+.documents-section {
+    padding: 1rem;
+    height: calc(100vh - var(--header-height) - 3rem);  /* 设置固定高度 */
+    overflow-y: auto;  /* 添加垂直滚动条 */
+}
+
+.documents-list {
+    margin-top: 1rem;
+}
+
+.document-item {
+    /* padding: 1rem; */
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid var(--secondary-color);
+    transition: all 0.3s;
+}
+
+.document-item:hover {
+    background: #e3f2fd;
+    transform: translateX(5px);
+}
+
+.document-name {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.document-time {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+
+
+/* agent_chat.html */
 
 /* 工具区域样式 */
 .tools-section {
@@ -762,27 +763,5 @@ body {
     border-radius: 3px;
 }
 
-.error-message {
-    color: #e74c3c;
-    text-align: center;
-    padding: 1rem;
-}
 
-/* 思考内容样式 */
-.message-content .think {
-    border-left: 4px solid #95a5a6;  /* 左边框，类似markdown引用 */
-    padding-left: 1rem;
-    margin: 0.5rem 0;
-    color: #7f8c8d;  /* 稍微淡一点的颜色 */
-    font-style: italic;
-    background-color: rgba(236, 240, 241, 0.5);  /* 浅灰色背景 */
-    padding: 0.8rem 1rem;
-    border-radius: 4px;
-    display: block;
-}
 
-.user-message .message-content .think {
-    border-left-color: rgba(255, 255, 255, 0.5);  /* 用户消息中的think样式调整 */
-    background-color: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.9);
-}

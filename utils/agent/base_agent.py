@@ -82,8 +82,8 @@ class BaseAgent(ABC):
                 - stream: 是否流式响应
         """
         self.default_config = {
-            'maxhistorylength': 100,
-            'state_path': 'data/agent_state.json',
+            'maxhistorylength': 10,
+            'state_path': 'data/agent_state/agent_state.json',
             'logpath': 'logs',
             'llm': {
                 'endpoint': configs['ollama']['endpoint'],
@@ -519,3 +519,10 @@ class BaseAgent(ABC):
             descriptions.append(desc)
         
         return "\n".join(descriptions) 
+    
+
+if __name__ == "__main__":
+    agent = BaseAgent()
+    query = '帮我看一下我的机器的ip地址是多少？'
+    response = agent.run(query=query)
+    print(response)
