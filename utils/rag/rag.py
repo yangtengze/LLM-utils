@@ -11,6 +11,7 @@ import numpy as np
 import json
 import os
 import time
+
 class Rag:
     def __init__(self):
         """
@@ -298,6 +299,6 @@ if __name__ == "__main__":
     rag.load_documents(rag.files)
     
     # 生成响应
-    query = "你是谁啊？你叫什么？"
+    query = 'llama2大语言模型的参数量有多少的？'
     response = rag.generate_response(query)
     print(response)

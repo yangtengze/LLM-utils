@@ -7,40 +7,10 @@
     <title>{% block title %}LLM Utils{% endblock %}</title>
     
     <!-- 预加载关键资源 -->
-    <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" as="style">
-    
-    <!-- 异步加载非关键CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
     {% block extra_css %}{% endblock %}
-    <style>
-        /* 添加全局过渡效果 */
-        * {
-            transition: all 0.3s ease-out;
-        }
-        
-        /* 优化滚动条 */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-    </style>
+
 </head>
 <body>
     <nav class="navbar">

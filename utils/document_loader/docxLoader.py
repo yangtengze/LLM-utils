@@ -102,7 +102,7 @@ class DocxLoader:
 
 if __name__ == '__main__':
     loader = DocxLoader()
-    filepath = 'data/tmp/1.docx'
+    filepath = 'data/documents/1.docx'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         print(f"Chunk {i + 1}: {type(chunk)}")

@@ -10,3 +10,8 @@ class CSVLoader:
             for row in csv_reader:
                 documents.append(row)
         return documents
+    
+if __name__ == "__main__":
+    loader = CSVLoader()
+    data = loader.load('data/documents/data.csv')
+    print(data)

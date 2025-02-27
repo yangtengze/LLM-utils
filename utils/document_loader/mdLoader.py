@@ -205,8 +205,8 @@ class MDLoader:
 
 if __name__ == '__main__':
     loader = MDLoader()
-    filepath = 'data/tmp/README.md'
+    filepath = 'data/documents/README.md'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
-        # if i == 0:  # 只打印第二个块作为示例
-        print(f"Chunk {i + 1}:\n{chunk}\n")
+        if i == 1:  
+            print(f"Chunk {i + 1}:\n{chunk}\n")
