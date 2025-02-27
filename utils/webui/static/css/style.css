@@ -241,6 +241,7 @@ body {
     display: flex;
     flex-direction: column;
     height: calc(100vh - var(--header-height) - var(--footer-height) - 4rem);  /* 减去navbar、footer高度和padding */
+    position: relative;  /* 为折叠按钮提供定位上下文 */
 }
 /* 初始右侧聊天框标题区域 */
 .chat-header {
@@ -268,6 +269,7 @@ body {
     overflow-y: auto;
     background: var(--background-color);
     height: auto;  /* 移除固定高度，让它根据flex自动调整 */
+    transition: height 0.3s ease;
 }
 
 .welcome-message {
@@ -441,11 +443,43 @@ body {
 
 /* 输入区域 */
 .chat-input {
-    margin-top: auto;  /* 确保输入框始终在底部 */
-    height: auto;
-    padding: 0.8rem;
-    background: white;
+    margin-top: auto;
+    transition: all 0.3s ease;
     border-top: 1px solid var(--border-color);
+    background: white;
+}
+
+.chat-input.collapsed {
+    height: 48px !important;  /* 折叠时的高度 */
+    overflow: hidden;
+}
+
+.input-collapse-btn {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    width: 100px;
+    height: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: all 0.3s;
+    box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+}
+
+.input-collapse-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--secondary-color);
+}
+
+.input-collapse-btn i {
+    transition: transform 0.3s;
 }
 
 .input-group {

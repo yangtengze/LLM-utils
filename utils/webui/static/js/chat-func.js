@@ -194,6 +194,47 @@ function autoResizeTextarea() {
     messageInput.style.height = messageInput.scrollHeight + 'px';
 }
 
+// 添加输入区域折叠功能
+function setupInputCollapse() {
+    const chatInput = document.querySelector('.chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+    // 创建折叠按钮
+    const collapseBtn = document.createElement('button');
+    collapseBtn.className = 'input-collapse-btn';
+    collapseBtn.innerHTML = '<i class="fas fa-chevron-down">折叠输入框</i>';
+    chatInput.parentElement.insertBefore(collapseBtn, chatInput);
+    
+    // 记录输入区域原始高度
+    let inputHeight = chatInput.offsetHeight;
+    
+    // 折叠/展开功能
+    function toggleCollapse() {
+        const isCollapsed = chatInput.classList.toggle('collapsed');
+        
+        // 调整消息区域高度
+        if (isCollapsed) {
+            chatMessages.style.height = `auto`;
+            chatInput.style.display = 'none';
+            collapseBtn.innerHTML = '<i class="fas fa-chevron-up">展开输入框</i>';
+
+        } else {
+            // 重新计算输入区域高度
+            chatInput.style.height = 'auto';
+            inputHeight = chatInput.offsetHeight;
+            // chatMessages.style.height = `calc(100% - ${inputHeight}px)`;
+            collapseBtn.innerHTML = '<i class="fas fa-chevron-down">折叠输入框</i>';
+            chatMessages.style.height = `auto`;
+            chatInput.style.display = 'block';
+        }
+        
+        // 滚动到底部
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // 监听折叠按钮点击
+    collapseBtn.addEventListener('click', toggleCollapse);
+    
+}
 
 // 导出共用函数
 export {
@@ -203,5 +244,6 @@ export {
     streamMessage,
     loadModelConfig,
     setupModelSwitching,
-    autoResizeTextarea
+    autoResizeTextarea,
+    setupInputCollapse
 }; 
