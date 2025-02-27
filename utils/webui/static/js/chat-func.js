@@ -1,3 +1,12 @@
+// 在文件开头添加 marked 配置
+marked.setOptions({
+    renderer: new marked.Renderer(),
+    highlight: function(code, lang) {
+        return code;
+    },
+    breaks: true
+});
+
 // 共用的标签变量
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -35,20 +44,22 @@ function addMessage(content, type, streaming = false) {
     return messageDiv;
 }
 
-// 共用的消息格式化函数
 function formatMessage(content) {
-    return content.replace(/<think>([\s\S]*?)<\/think>/g, '<div class="think">thinking: $1</div>');
+    return content.replace(/<think>(.*?)<\/think>\s*(.*)/s, '<think>thinking:  $1</think><result>$2</result>');
 }
 
 // 共用的添加流式输出函数
 function streamMessage(content, messageDiv) {
+    console.log(content);
     const contentDiv = messageDiv.querySelector('.message-content');
-    let index = 0;
+    content = formatMessage(content);
     const chars = content.split('');
+
+    let index = 0;
+    let buffer = '';
     
     function appendNextChar() {
         if (index < chars.length) {
-            // 处理HTML标签
             if (chars[index] === '<') {
                 let tagContent = '<';
                 let j = index + 1;
@@ -58,30 +69,56 @@ function streamMessage(content, messageDiv) {
                 }
                 tagContent += '>';
                 
-                // 检查是否是think标签
-                if (tagContent.startsWith('<think>')) {
-                    const thinkStart = index;
-                    // 找到结束标签
-                    while (j < chars.length && !chars.slice(j, j + 8).join('').includes('</think>')) {
-                        j++;
+                // 检查是否是think或result标签
+                if (tagContent === '<think>' || tagContent === '<result>') {
+                    // 先渲染之前累积的buffer
+                    if (buffer) {
+                        contentDiv.innerHTML += marked.parse(buffer);
+                        buffer = '';
                     }
-                    j += 8; // 跳过</think>
-                    const thinkContent = chars.slice(thinkStart, j).join('');
-                    contentDiv.innerHTML += formatMessage(thinkContent);
-                    index = j;
-                } else {
-                    contentDiv.innerHTML += tagContent;
+                    
+                    // 创建容器
+                    const specialDiv = document.createElement('div');
+                    specialDiv.className = tagContent === '<think>' ? 'think' : 'result';
+                    contentDiv.appendChild(specialDiv);
+                    
+                    // 跳过开始标签
                     index = j + 1;
+                    let specialBuffer = '';
+                    
+                    // 开始逐字输出内容
+                    function appendSpecialContent() {
+                        if (index < chars.length) {
+                            // 检查是否到达结束标签
+                            const endTag = tagContent === '<think>' ? '</think>' : '</result>';
+                            if (chars[index] === '<' && chars.slice(index, index + endTag.length).join('') === endTag) {
+                                // 渲染累积的特殊内容
+                                specialDiv.innerHTML = marked.parse(specialBuffer);
+                                index += endTag.length; // 跳过结束标签
+                                appendNextChar(); // 继续处理后续内容
+                                return;
+                            }
+                            
+                            specialBuffer += chars[index];
+                            // 每积累一定数量的字符就渲染一次
+                            if (specialBuffer.includes('\n') || specialBuffer.length > 50) {
+                                specialDiv.innerHTML = marked.parse(specialBuffer);
+                            }
+                            
+                            index++;
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                            setTimeout(appendSpecialContent, 20);
+                        }
+                    }
+                    
+                    appendSpecialContent();
+                } else {
+                    buffer += tagContent;
+                    index = j + 1;
+                    setTimeout(appendNextChar, 20);
                 }
-            } else {
-                contentDiv.innerHTML += chars[index];
-                index++;
-            }
-            
-            // 自动滚动到底部
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            setTimeout(appendNextChar, 20); // 控制打字速度
-        }
+            } 
+        } 
     }
     
     appendNextChar();
