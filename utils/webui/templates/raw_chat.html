@@ -73,7 +73,7 @@
 {% block extra_js %}
 <script type="module">
 
-import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea } from '/static/js/chat-func.js';
+import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse } from '/static/js/chat-func.js';
 
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
@@ -156,6 +156,7 @@ messageInput.addEventListener('keypress', (e) => {
 // 初始化
 loadModelConfig();
 setupModelSwitching();
+setupInputCollapse();
 </script>
 {% endblock %}
 {% endblock %}
