@@ -7,6 +7,7 @@
 |----------------|-------|-------------------------|
 | 2025/2/20  0:08 | 0.1   | LLM-utils 上线|
 | 2025/2/22  23:48 | 0.1.1   | WebUI 优化|
+| 2025/2/27  18:41 | 0.1.2  | code 优化|
 
 
 **附上ollama快速下载 LLM-utils/download_model.ps1**
@@ -30,15 +31,16 @@ LLM-UTILS/
 ├── data/
 │   ├── agent_state.json
 │   ├── documents/
-│   │   ├── data.csv
-│   │   └── test.txt
-│   ├── tmp/
-│   │   ├── README.md
 │   │   ├── llama2/
 │   │   │   ├──llama2.pdf
+│   │   ├── data.csv
+│   │   ├── test.txt
+│   │   ├── README.md
 │   │   ├── 1.docx
 │   │   └── tmp_store
 │   └── vec_db_store/
+│       ├── agent_state/
+│       │   └──agent_state.json
 │       ├── doc_vectors.npy
 │       └── metadata.json
 ├── logs/
@@ -55,7 +57,7 @@ LLM-UTILS/
 ├── utils/
 │   ├── load_config.py
 │   ├── base_func/
-│   │   ├── parse_response.py
+│   │   └── parse_response.py
 │   ├── agent/
 │   │   ├── base_agent.py
 │   │   └── tools.py
@@ -95,34 +97,39 @@ LLM-UTILS/
 
 ### 2. Agent 系统
 - 基础 Agent 框架
-  - 工具管理和调用
+  - 工具调用
   - 对话历史记录
-  - 状态管理
   - LLM 集成
-  - Prompt 管理
-- RAG Agent 实现
-  - 文档智能检索
-  - 上下文感知
 
 ### 3. Web 界面
 - 多种聊天模式
   - 基础对话
   - RAG 增强对话
   - Agent 对话
-  - 多模态对话
-- 文档管理
-- 系统配置
+  - 多模态对话（持续更新中）
+- 文档上传
 
 ## 快速开始
 1. **配置**
-编辑 configs/configs.yaml 的相关配置文件：
-- ollama: LLM 服务配置
-- rag.yaml: RAG 系统配置
-- webui.yaml: Web UI 配置
+
+
+**编辑 `configs/configs.yaml` 的相关配置文件：**
+    
+    - `ollama`: LLM 服务配置
+    - `rag`: RAG 系统配置
+    - `webui`: Web UI 配置
+```yaml
+  embedding_model:                    # 嵌入模型配置
+    path: "/local/path/to/bge-large-zh-v1.5"         # HuggingFace 模型名称
+    # path: "quentinz/bge-large-zh-v1.5"         # HuggingFace 模型名称
+    device: ["cuda"]                  # 运行设备（cpu/cuda）
+    normalize_embeddings: True        # 是否归一化嵌入向量 True/False
+```
+**这里要先`path`替换为本地embedding模型路径**
 
 2. **方法一 安装依赖**
 
-> 确保conda环境有torch(cpu/gpu)
+**确保conda环境有torch(cpu/gpu)**
 
 ```bash
 pip install -r requirements.txt
@@ -133,18 +140,18 @@ python run_webui.py
 ```
 
 3. **方法二 脚本直接启动（从头下载依赖gpu版）**
-Windows:
+
+`Windows:`
 ```bash
 bin/start-llm-utils.bat
 ```
 
-Linux/Mac:
+`Linux/Mac:`
 ```bash
 ./bin/start-llm-utils.sh
 ```
 
-启动过一次后面就是
-
+**若启动过前面的脚本并无报错、后续启动就是**
 ```bash
 python ./run_webui.py
 ```
