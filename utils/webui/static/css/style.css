@@ -390,6 +390,55 @@ body {
     display: block;
 }
 
+.message-content .result {
+    border-left: 4px solid #3498db;  /* 使用更柔和的蓝色边框 */
+    padding: 1rem 1.2rem;
+    margin: 0.8rem 0;
+    color: #2c3e50;  /* 更深的文字颜色，提高可读性 */
+    background-color: #f8f9fa;  /* 浅灰色背景 */
+    border-radius: 8px;
+    display: block;
+    line-height: 1.6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);  /* 添加轻微阴影 */
+}
+
+.message-content .result p {
+    margin: 0.8rem 0;
+}
+
+.message-content .result strong {
+    color: #2980b9; 
+}
+
+.message-content .result h1,
+.message-content .result h2,
+.message-content .result h3,
+.message-content .result h4 {
+    color: #2c3e50;
+    margin: 1rem 0 0.5rem 0;
+    font-weight: 600;
+}
+
+.message-content .result .katex-display {
+    margin: 1rem 0;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.message-content .result ul,
+.message-content .result ol {
+    margin: 0.8rem 0;
+    padding-left: 1.5rem;
+}
+
+.message-content .result li {
+    margin: 0.3rem 0;
+}
+
+
+
 /* 输入区域 */
 .chat-input {
     margin-top: auto;  /* 确保输入框始终在底部 */
