@@ -167,7 +167,6 @@ class Rag:
                             })
                             # 生成向量
                             file_vectors.append(self.embedding_model.encode(str(chunk)))
-                        
                         # 追加向量
                         vectors.extend(file_vectors)
 
@@ -204,7 +203,9 @@ class Rag:
             raise ValueError("请先加载文档")
 
         # 生成查询向量
-        query_vector = self.embedding_model.encode(query).reshape(1, -1)
+        # query_vector = self.embedding_model.encode(query).reshape(1, -1)
+        query_vector = self.embedding_model.encode_queries([query])
+        # print(query_vector)
         # query_vector.shape: (1, 1024)
         # doc_vectors.shape: (num_docs, 1024)
         # 计算相似度
