@@ -5,6 +5,7 @@ from utils.agent.tools import *
 from utils.load_config import configs
 from werkzeug.utils import secure_filename
 import os
+import re
 
 # import utils.multimodal_utils as multimodal_utils
 api = Blueprint('api', __name__)
@@ -67,7 +68,8 @@ def raw_chat():
         
         return jsonify({
             'status': 'success',
-            'response': response
+            'response': response,
+            'latex': re.findall(r'\\(?:begin|end)\{[a-z]*\}|\\.|[{}]|\$', response)  # 公式检测
         })
     except Exception as e:
         return jsonify({
@@ -85,7 +87,8 @@ def rag_chat():
         response = rag.generate_response(message)
         return jsonify({
             'status': 'success',
-            'response': response
+            'response': response,
+            'latex': re.findall(r'\\(?:begin|end)\{[a-z]*\}|\\.|[{}]|\$', response)  # 公式检测
         })
     except Exception as e:
         return jsonify({
@@ -103,7 +106,8 @@ def agent_chat():
         response = agent.run(message)
         return jsonify({
             'status': 'success',
-            'response': response
+            'response': response,
+            'latex': re.findall(r'\\(?:begin|end)\{[a-z]*\}|\\.|[{}]|\$', response)  # 公式检测
         })
     except Exception as e:
         return jsonify({
