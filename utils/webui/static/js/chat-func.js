@@ -45,7 +45,17 @@ function addMessage(content, type, streaming = false) {
 }
 
 function formatMessage(content) {
-    return content.replace(/<think>(.*?)<\/think>\s*(.*)/s, '<think>thinking:  $1</think><result>$2</result>');
+    content = content.replace(/<think>(.*?)<\/think>\s*(.*)/s, '<think>thinking:  $1</think><result>$2</result>')
+    content = content.replace(/(\\\(|\\\)|\[|\])/g, (m) => {
+        switch (m) {
+            case '\\(': return '\\\\(';
+            case '\\)': return '\\\\)';
+            case '[': return '\\[';
+            case ']': return '\\]';
+            default: return m;
+        }
+    });
+    return content;
 }
 
 // 共用的添加流式输出函数
@@ -74,6 +84,9 @@ function streamMessage(content, messageDiv) {
                     // 先渲染之前累积的buffer
                     if (buffer) {
                         contentDiv.innerHTML += marked.parse(buffer);
+                        MathJax.typesetPromise().catch(err => {
+                            console.log('公式渲染错误:', err);
+                        });
                         buffer = '';
                     }
                     
@@ -94,6 +107,9 @@ function streamMessage(content, messageDiv) {
                             if (chars[index] === '<' && chars.slice(index, index + endTag.length).join('') === endTag) {
                                 // 渲染累积的特殊内容
                                 specialDiv.innerHTML = marked.parse(specialBuffer);
+                                MathJax.typesetPromise().catch(err => {
+                                    console.log('公式渲染错误:', err);
+                                });
                                 index += endTag.length; // 跳过结束标签
                                 appendNextChar(); // 继续处理后续内容
                                 return;
@@ -103,6 +119,9 @@ function streamMessage(content, messageDiv) {
                             // 每积累一定数量的字符就渲染一次
                             if (specialBuffer.includes('\n') || specialBuffer.length > 50) {
                                 specialDiv.innerHTML = marked.parse(specialBuffer);
+                                MathJax.typesetPromise().catch(err => {
+                                    console.log('公式渲染错误:', err);
+                                });
                             }
                             
                             index++;
