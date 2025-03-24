@@ -85,16 +85,113 @@ async function loadDocuments() {
         const data = await response.json();
         if (data && Array.isArray(data)) {
             documentsList.innerHTML = data.map(doc => {
-                // 获取相对路径
                 const relativePath = doc.file_path.split('/').slice(-2).join('/');
+                const fileExt = relativePath.split('.').pop().toLowerCase();
+                const filePaths = relativePath.split('/');
+                console.log(filePaths);
+                // 根据文件类型选择不同的图标
+                let iconClass = 'fa-file-alt';
+                switch(fileExt) {
+                    case 'pdf':
+                        iconClass = 'fa-file-pdf';
+                        break;
+                    case 'docx':
+                    case 'doc':
+                        iconClass = 'fa-file-word';
+                        break;
+                    case 'txt':
+                        iconClass = 'fa-file-alt';
+                        break;
+                    case 'md':
+                        // iconClass = 'fa-file-markdown';
+                        iconClass = 'fab fa-markdown'; 
+                        break;
+                    case 'csv':
+                        iconClass = 'fa-file-csv';
+                        break;
+                }
+                
                 return `
-                    <div class="document-item">
-                        <i class="fas fa-file-alt"></i>
+                    <div class="document-item" data-path="${doc.file_path}">
+                        <i class="fas ${iconClass}"></i>
                         <span class="document-name">${relativePath}</span>
-                        <span class="document-time">${new Date(doc.timestamp * 1000).toLocaleString()}</span>
                     </div>
                 `;
+                // <span class="document-time">${new Date(doc.timestamp * 1000).toLocaleString()}</span>
             }).join('');
+
+            // 添加预览事件监听到整个文档项
+            document.querySelectorAll('.document-item').forEach(documentItem => {
+                documentItem.addEventListener('click', async (e) => {
+                    const filePath = documentItem.dataset.path;
+                    
+                    try {
+                        const previewResponse = await fetch('/api/documents/preview', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ file_path: filePath })
+                        });
+                        
+                        const previewData = await previewResponse.json();
+                        
+                        if (previewData.status === 'success') {
+                            // 创建预览模态框
+                            const previewModal = document.createElement('div');
+                            previewModal.className = 'preview-modal';
+                            
+                            let previewContent = '';
+                            switch(previewData.type) {
+                                case 'html_table':
+                                    previewContent = `
+                                        <div class="preview-modal-content csv-preview">
+                                            <span class="preview-close">&times;</span>
+                                            <h3>CSV文件预览：${filePath}</h3>
+                                            <div class="table-container">
+                                                ${previewData.content}
+                                            </div>
+                                        </div>
+                                    `;
+                                    break;
+                                case 'html':
+                                    previewContent = `
+                                        <div class="preview-modal-content rich-preview">
+                                            <span class="preview-close">&times;</span>
+                                            <h3>文档预览：${filePath}</h3>
+                                            <div class="preview-content">
+                                                ${previewData.content}
+                                            </div>
+                                        </div>
+                                    `;
+                                    break;
+                                default:
+                                    previewContent = `
+                                        <div class="preview-modal-content text-preview">
+                                            <span class="preview-close">&times;</span>
+                                            <h3>文档预览：${filePath}</h3>
+                                            <pre>${previewData.content}</pre>
+                                        </div>
+                                    `;
+                            }
+                            
+                            previewModal.innerHTML = previewContent;
+                            
+                            document.body.appendChild(previewModal);
+                            
+                            // 关闭模态框
+                            previewModal.querySelector('.preview-close').addEventListener('click', () => {
+                                document.body.removeChild(previewModal);
+                            });
+                        } else {
+                            addMessage(previewData.message, 'error');
+                        }
+                    } catch (error) {
+                        console.error('预览文档失败:', error);
+                        addMessage('预览文档失败', 'error');
+                    }
+                });
+            });
         }
     } catch (error) {
         console.error('加载文档失败:', error);
