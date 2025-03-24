@@ -8,6 +8,7 @@
 | 2025/2/20  0:08 | 0.1   | LLM-utils 上线|
 | 2025/2/22  23:48 | 0.1.1   | WebUI 优化|
 | 2025/2/27  18:41 | 0.1.2  | code 优化|
+| 2025/3/24  22:30 | 0.1.3  | rag file preview 功能|
 
 
 **附上ollama快速下载 LLM-utils/download_model.ps1**
