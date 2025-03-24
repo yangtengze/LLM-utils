@@ -4,6 +4,7 @@ from utils.rag import Rag
 from utils.agent.tools import *
 from utils.load_config import configs
 from werkzeug.utils import secure_filename
+from utils.documents_preview import *
 import os
 import re
 
@@ -41,6 +42,49 @@ agent.register_tool(Tool(
         }
     }
 )) 
+
+
+@api.route('/config', methods=['GET'])
+def get_config():
+    """获取配置信息"""
+    try:
+        return jsonify({
+            'status': 'success',
+            'current_model': configs['ollama']['default_model'],
+            'available_models': configs['ollama']['models']
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@api.route('/config/model', methods=['POST'])
+def update_model():
+    """更新当前使用的模型"""
+    try:
+        data = request.get_json()
+        model_name = data.get('model')
+        
+        if model_name not in configs['ollama']['models']:
+            return jsonify({
+                'status': 'error',
+                'message': '不支持的模型'
+            }), 400
+            
+        # 更新 RAG 和 Agent 的模型配置
+        rag.llm_model = model_name
+        agent.config['llm']['model'] = model_name
+        
+        return jsonify({
+            'status': 'success',
+            'model': model_name
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @api.route('/chat/raw', methods=['POST'])
 def raw_chat():
@@ -141,17 +185,53 @@ def get_documents():
             'message': str(e)
         }), 500
 
-@api.route('/tools', methods=['GET'])
-def get_tools():
-    """获取可用工具列表"""
+@api.route('/documents/preview', methods=['POST'])
+def preview_document():
+    """预览文档内容"""
+    data = request.get_json()
+    file_path = data.get('file_path')
+    
     try:
-        tools = agent.get_available_tools()
-        # print(tools)
-        return jsonify(tools)
+        allowed_extensions = ['.txt', '.md', '.csv', '.log', '.pdf', '.docx', '']
+        
+        if not file_path or not any(file_path.endswith(ext) for ext in allowed_extensions):
+            return jsonify({
+                'status': 'error',
+                'message': '不支持预览此类型文件'
+            }), 400
+        
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        preview_func_map = {
+            '.csv': preview_csv,
+            '.docx': preview_docx,
+            '.pdf': preview_pdf,
+            '.md': preview_markdown,
+            '.txt': lambda path: {
+                'type': 'text', 
+                'content': open(path, 'r', encoding='utf-8').read()
+            },
+            '': lambda path: {
+                'type': 'text', 
+                'content': open(path, 'r', encoding='utf-8').read()
+            }
+        }
+        
+        preview_result = preview_func_map.get(file_ext, lambda path: {
+            'type': 'text', 
+            'content': f"不支持预览 {file_ext} 类型文件"
+        })(file_path)
+        
+        return jsonify({
+            'status': 'success',
+            'file_path': file_path,
+            **preview_result
+        })
+    
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': f'预览失败：{str(e)}'
         }), 500
 
 @api.route('/upload', methods=['POST'])
@@ -197,42 +277,13 @@ def upload_files():
             'message': f'上传文件失败: {str(e)}'
         }), 500
 
-@api.route('/config', methods=['GET'])
-def get_config():
-    """获取配置信息"""
+@api.route('/tools', methods=['GET'])
+def get_tools():
+    """获取可用工具列表"""
     try:
-        return jsonify({
-            'status': 'success',
-            'current_model': configs['ollama']['default_model'],
-            'available_models': configs['ollama']['models']
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@api.route('/config/model', methods=['POST'])
-def update_model():
-    """更新当前使用的模型"""
-    try:
-        data = request.get_json()
-        model_name = data.get('model')
-        
-        if model_name not in configs['ollama']['models']:
-            return jsonify({
-                'status': 'error',
-                'message': '不支持的模型'
-            }), 400
-            
-        # 更新 RAG 和 Agent 的模型配置
-        rag.llm_model = model_name
-        agent.config['llm']['model'] = model_name
-        
-        return jsonify({
-            'status': 'success',
-            'model': model_name
-        })
+        tools = agent.get_available_tools()
+        # print(tools)
+        return jsonify(tools)
     except Exception as e:
         return jsonify({
             'status': 'error',
