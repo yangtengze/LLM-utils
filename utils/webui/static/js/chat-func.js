@@ -12,7 +12,7 @@ const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
 
 // 共用的添加消息函数
-function addMessage(content, type, streaming = false) {
+function addMessage(content, type, streaming = false, callback = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}-message`;
     
@@ -38,7 +38,9 @@ function addMessage(content, type, streaming = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     if (streaming && type === 'assistant') {
-        streamMessage(content, messageDiv);
+        streamMessage(content, messageDiv, callback);
+    } else if (callback && typeof callback === 'function') {
+        setTimeout(callback, 0);
     }
     
     return messageDiv;
@@ -59,7 +61,7 @@ function formatMessage(content) {
 }
 
 // 共用的添加流式输出函数
-function streamMessage(content, messageDiv) {
+function streamMessage(content, messageDiv, callback = null) {
     console.log(content);
     const contentDiv = messageDiv.querySelector('.message-content');
     content = formatMessage(content);
@@ -137,7 +139,12 @@ function streamMessage(content, messageDiv) {
                     setTimeout(appendNextChar, 20);
                 }
             } 
-        } 
+        } else {
+            // 当所有字符都处理完毕后，调用回调函数
+            if (callback && typeof callback === 'function') {
+                setTimeout(callback, 100); // 给最后的渲染一点时间
+            }
+        }
     }
     
     appendNextChar();
@@ -255,6 +262,253 @@ function setupInputCollapse() {
     
 }
 
+// 修改历史对话处理函数
+let currentChatId = null; // 添加全局变量记录当前对话ID
+
+function saveChat(chatType, messages) {
+    // 如果没有实质性消息则不保存
+    if (messages.length <= 0 || 
+        (messages.length === 1 && messages[0].classList.contains('welcome-message'))) {
+        return null;
+    }
+    
+    // 获取当前对话的第一条消息作为标题
+    let title = "新对话";
+    for (const msg of messages) {
+        if (msg.classList.contains('user-message')) {
+            const content = msg.querySelector('.message-content').textContent.trim();
+            title = content.length > 30 ? content.substring(0, 30) + '...' : content;
+            break;
+        }
+    }
+    
+    // 提取消息内容
+    const chatData = [];
+    messages.forEach(msg => {
+        // 跳过欢迎消息
+        if (msg.classList.contains('welcome-message')) return;
+        
+        const type = msg.classList.contains('user-message') ? 'user' : 
+                    msg.classList.contains('assistant-message') ? 'assistant' : 'system';
+        
+        // 获取消息内容
+        const contentDiv = msg.querySelector('.message-content');
+        let content = '';
+        content = contentDiv.innerHTML;
+        chatData.push({ type, content });
+    });
+    
+    // 如果没有实质性消息则不保存
+    if (chatData.length === 0) return null;
+    
+    // 保存到localStorage
+    const history = JSON.parse(localStorage.getItem(`${chatType}_history`) || '[]');
+    if (currentChatId) {
+        // 更新现有对话
+        const existingChatIndex = history.findIndex(chat => chat.id === currentChatId);
+        if (existingChatIndex >= 0) {
+            history[existingChatIndex] = {
+                id: currentChatId,
+                title,
+                date: new Date().toISOString(),
+                messages: chatData
+            };
+        } else {
+            // 如果找不到现有对话，创建新对话
+            currentChatId = Date.now().toString();
+            history.push({
+                id: currentChatId,
+                title,
+                date: new Date().toISOString(),
+                messages: chatData
+            });
+        }
+    } else {
+        // 创建新对话
+        currentChatId = Date.now().toString();
+        history.push({
+            id: currentChatId,
+            title,
+            date: new Date().toISOString(),
+            messages: chatData
+        });
+    }
+    
+    localStorage.setItem(`${chatType}_history`, JSON.stringify(history));
+    // 更新历史列表
+    loadChatHistory(chatType);
+    
+    return currentChatId;
+}
+
+function loadChatHistory(chatType) {
+    const historyList = document.getElementById('chat-history-list');
+    if (!historyList) return;
+    
+    const history = JSON.parse(localStorage.getItem(`${chatType}_history`) || '[]');
+    
+    historyList.innerHTML = history.length ? 
+        history.map(chat => `
+            <div class="chat-history-item" data-id="${chat.id}">
+                <i class="fas fa-comment"></i>
+                <div class="chat-history-title">${chat.title}</div>
+                <div class="chat-history-date">${new Date(chat.date).toLocaleDateString()}</div>
+                <div class="chat-history-delete" data-id="${chat.id}">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+        `).join('') : 
+        '<div class="empty-history">无历史对话</div>';
+        
+    // 添加事件监听
+    document.querySelectorAll('.chat-history-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.chat-history-delete')) {
+                // 删除对话
+                const id = e.target.closest('.chat-history-delete').dataset.id;
+                deleteChat(chatType, id);
+                e.stopPropagation();
+            } else {
+                // 加载对话
+                const id = item.dataset.id;
+                console.log(history)
+                loadChat(chatType, id);
+            }
+        });
+    });
+}
+
+function loadChat(chatType, chatId) {
+    const history = JSON.parse(localStorage.getItem(`${chatType}_history`) || '[]');
+    const chat = history.find(c => c.id === chatId);
+    
+    if (chat) {
+        // 设置当前对话ID
+        currentChatId = chatId;
+        
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.innerHTML = '';
+        
+        // 如果没有消息，显示欢迎信息
+        if (chat.messages.length === 0) {
+            showWelcomeMessage(chatType);
+            return;
+        }
+        
+        chat.messages.forEach(msg => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${msg.type}-message`;
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'message-icon';
+            iconDiv.innerHTML = msg.type === 'user' ? 
+                '<i class="fas fa-user"></i>' : 
+                msg.type === 'system' ?
+                '<i class="fas fa-info-circle"></i>' :
+                '<i class="fas fa-robot"></i>';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // 直接设置innerHTML，保持原有结构
+            contentDiv.innerHTML = msg.content;
+            
+            messageDiv.appendChild(iconDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            chatMessages.appendChild(messageDiv);
+        });
+        
+        // 标记当前活动对话
+        document.querySelectorAll('.chat-history-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.id === chatId);
+        });
+        
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+}
+
+function deleteChat(chatType, chatId) {
+    if (confirm('确定要删除此对话？')) {
+        let history = JSON.parse(localStorage.getItem(`${chatType}_history`) || '[]');
+        history = history.filter(chat => chat.id !== chatId);
+        localStorage.setItem(`${chatType}_history`, JSON.stringify(history));
+        loadChatHistory(chatType);
+    }
+}
+
+function setupChatHistory(chatType) {
+    // 加载历史对话
+    loadChatHistory(chatType);
+    
+    // 新对话按钮事件
+    const newChatBtn = document.getElementById('new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+            // 重置当前对话ID
+            currentChatId = null;
+            
+            // 显示欢迎信息
+            showWelcomeMessage(chatType);
+            
+            // 清除活动状态
+            document.querySelectorAll('.chat-history-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        });
+    }
+}
+
+// 添加一个显示欢迎信息的函数
+function showWelcomeMessage(chatType) {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // 根据聊天类型显示不同的欢迎信息
+    let welcomeContent = '';
+    switch(chatType) {
+        case 'raw':
+            welcomeContent = `
+                <div class="welcome-message">
+                    <i class="fas fa-robot"></i>
+                    <h3>欢迎使用 Raw Chat</h3>
+                    <p>这是一个简单的对话模式，直接与语言模型交互。</p>
+                    <p>您可以开始输入任何问题...</p>
+                </div>
+            `;
+            break;
+        case 'rag':
+            welcomeContent = `
+                <div class="welcome-message">
+                    <i class="fas fa-robot"></i>
+                    <h3>欢迎使用 RAG Chat</h3>
+                    <p>这是一个基于文档的智能问答系统。</p>
+                    <p>请先上传文档，然后开始提问...</p>
+                </div>
+            `;
+            break;
+        case 'agent':
+            welcomeContent = `
+                <div class="welcome-message">
+                    <i class="fas fa-robot"></i>
+                    <h3>欢迎使用 Agent Chat</h3>
+                    <p>这是一个增强型对话系统，可以使用各种工具来辅助回答。</p>
+                    <p>您可以开始输入任何问题...</p>
+                </div>
+            `;
+            break;
+        default:
+            welcomeContent = `
+                <div class="welcome-message">
+                    <i class="fas fa-robot"></i>
+                    <h3>欢迎使用</h3>
+                    <p>您可以开始输入任何问题...</p>
+                </div>
+            `;
+    }
+    
+    chatMessages.innerHTML = welcomeContent;
+}
+
 // 导出共用函数
 export {
     formatMessage,
@@ -264,5 +518,12 @@ export {
     loadModelConfig,
     setupModelSwitching,
     autoResizeTextarea,
-    setupInputCollapse
+    setupInputCollapse,
+    saveChat,
+    loadChatHistory,
+    loadChat,
+    deleteChat,
+    setupChatHistory,
+    showWelcomeMessage,
+    currentChatId
 }; 

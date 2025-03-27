@@ -1198,3 +1198,95 @@ body {
     border-radius: 3px;
 }
 
+/* 历史对话区域样式 */
+.history-section {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.new-chat-btn {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+}
+
+.new-chat-btn:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+.chat-history-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.chat-history-item {
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid var(--secondary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.chat-history-item:hover {
+    background: #e3f2fd;
+    transform: translateX(5px);
+}
+
+.chat-history-item.active {
+    background: #e3f2fd;
+    border-left-color: var(--primary-color);
+}
+
+.chat-history-title {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-history-date {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.chat-history-delete {
+    color: #ccc;
+    cursor: pointer;
+    padding: 0.2rem;
+    position: absolute;
+    right: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.chat-history-item:hover .chat-history-delete {
+    opacity: 1;
+}
+
+.chat-history-delete:hover {
+    color: var(--accent-color);
+}
+
