@@ -5,6 +5,18 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
+        <div class="history-section">
+            <div class="history-header">
+                <h3>历史对话</h3>
+                <button id="new-chat-btn" class="new-chat-btn">
+                    <i class="fas fa-plus"></i> 新对话
+                </button>
+            </div>
+            <div id="chat-history-list" class="chat-history-list">
+                <!-- 历史对话列表将通过JavaScript动态加载 -->
+            </div>
+        </div>
+        
         <div class="upload-section">
             <h3>上传文档</h3>
             <form id="upload-form" class="upload-form">
@@ -68,7 +80,7 @@
 
 {% block extra_js %}
 <script type="module">
-import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse } from '/static/js/chat-func.js';
+import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse, saveChat, loadChatHistory, loadChat, deleteChat, setupChatHistory, showWelcomeMessage } from '/static/js/chat-func.js';
 
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
@@ -253,8 +265,12 @@ async function sendMessage() {
         loadingMessage.remove();
         
         if (data.status === 'success') {
-            // 使用流式输出
-            addMessage(data.response, 'assistant', true);
+            // 使用流式输出            
+            addMessage(data.response, 'assistant', true, () => {
+                console.log(document.querySelectorAll('#chat-messages > div'))
+                // 渲染完成后保存对话
+                saveChat('rag', document.querySelectorAll('#chat-messages > div'));
+            });
         } else {
             addMessage('发送消息失败：' + data.message, 'error');
         }
@@ -267,14 +283,7 @@ async function sendMessage() {
 
 // 清空对话
 function clearChat() {
-    chatMessages.innerHTML = `
-        <div class="welcome-message">
-            <i class="fas fa-robot"></i>
-            <h3>欢迎使用 RAG Chat</h3>
-            <p>这是一个基于文档的智能问答系统。</p>
-            <p>请先上传文档，然后开始提问...</p>
-        </div>
-    `;
+    showWelcomeMessage('rag');
 }
 
 // 事件监听
@@ -293,6 +302,7 @@ loadModelConfig();
 setupModelSwitching();
 loadDocuments();
 setupInputCollapse();
+setupChatHistory('rag');
 </script>
 {% endblock %}
-{% endblock %} 
+{% endblock %}
