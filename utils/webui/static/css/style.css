@@ -1123,6 +1123,7 @@ body {
 /* 工具区域样式 */
 .tools-section {
     padding: 1rem;
+    overflow-y: auto; 
 }
 
 .tools-list {

@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 from utils.documents_preview import *
 import os
 import re
+from utils.ocr_manager import get_ocr_engine
 
 # import utils.multimodal_utils as multimodal_utils
 api = Blueprint('api', __name__)
@@ -295,3 +296,22 @@ def get_tools():
 #     data = request.json
 #     response = multimodal_utils.generate_response(data['message'])
 #     return jsonify({'response': response})
+
+@api.route('/ocr/process', methods=['POST'])
+def process_image():
+    """处理图片OCR"""
+    try:
+        # 获取共享的OCR引擎
+        ocr_engine = get_ocr_engine()
+        
+        # 使用OCR引擎处理图片...
+        
+        return jsonify({
+            'status': 'success',
+            'result': result
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
