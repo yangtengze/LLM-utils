@@ -12,7 +12,7 @@ const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
 
 // 共用的添加消息函数
-function addMessage(content, type) {
+function addMessage(content, type, chatMode = 'rag') {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}-message`;
     
@@ -32,6 +32,40 @@ function addMessage(content, type) {
     messageDiv.appendChild(iconDiv);
     messageDiv.appendChild(contentDiv);
     
+    // 如果是用户消息，且不是raw_chat模式时，添加相关问题和参考文件按钮
+    if (type === 'user' && chatMode !== 'raw') {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message-actions';
+        
+        // 相关问题按钮
+        const relatedQuestionsBtn = document.createElement('button');
+        relatedQuestionsBtn.className = 'related-questions-btn';
+        relatedQuestionsBtn.innerHTML = '<i class="fas fa-question-circle"></i>';
+        relatedQuestionsBtn.title = '查看相关问题';
+        relatedQuestionsBtn.onclick = () => fetchRelatedQuestions(content, messageDiv);
+        
+        // 参考文件按钮
+        const referenceFilesBtn = document.createElement('button');
+        referenceFilesBtn.className = 'reference-files-btn';
+        referenceFilesBtn.innerHTML = '<i class="fas fa-file-alt"></i>';
+        referenceFilesBtn.title = '查看参考文件';
+        referenceFilesBtn.onclick = () => fetchReferenceFiles(content, messageDiv);
+        
+        // 相关上下文按钮
+        const relatedContextsBtn = document.createElement('button');
+        relatedContextsBtn.className = 'related-contexts-btn';
+        relatedContextsBtn.innerHTML = '<i class="fas fa-book-open"></i>';
+        relatedContextsBtn.title = '查看相关上下文';
+        relatedContextsBtn.onclick = () => fetchRelatedContexts(content, messageDiv);
+        
+        actionsDiv.appendChild(relatedQuestionsBtn);
+        actionsDiv.appendChild(referenceFilesBtn);
+        actionsDiv.appendChild(relatedContextsBtn);
+        
+        // 将操作按钮放在内容后面，而不是直接放在消息div中
+        messageDiv.appendChild(actionsDiv);
+    }
+
     chatMessages.appendChild(messageDiv);
     scrollToBottom();
     
@@ -300,26 +334,51 @@ function addLoadingMessage() {
 }
 
 // 共用的加载模型配置
+let modelConfigLoaded = false;
 async function loadModelConfig() {
+    // 如果已经加载过，则跳过
+    if (modelConfigLoaded) {
+        return;
+    }
+    
     try {
         const response = await fetch('/api/config');
         const data = await response.json();
         if (data.status === 'success') {
             const modelSelect = document.getElementById('model-select');
-            modelSelect.innerHTML = data.available_models.map(model => 
-                `<option value="${model}" ${model === data.current_model ? 'selected' : ''}>
-                    ${model}
-                </option>`
-            ).join('');
+            if (modelSelect) {
+                modelSelect.innerHTML = data.available_models.map(model => 
+                    `<option value="${model}" ${model === data.current_model ? 'selected' : ''}>
+                        ${model}
+                    </option>`
+                ).join('');
+                // 标记为已加载
+                modelConfigLoaded = true;
+            }
         }
     } catch (error) {
         console.error('加载模型配置失败:', error);
-        document.getElementById('model-select').innerHTML = '<option value="">加载失败</option>';
+        const modelSelect = document.getElementById('model-select');
+        if (modelSelect) {
+            modelSelect.innerHTML = '<option value="">加载失败</option>';
+        }
     }
 }
+
 // 共用的切换模型
+let modelSwitchingSetup = false;
 function setupModelSwitching() {
-    document.getElementById('model-select').addEventListener('change', async (e) => {
+    // 如果已经设置过，则跳过
+    if (modelSwitchingSetup) {
+        return;
+    }
+    
+    const modelSelect = document.getElementById('model-select');
+    if (!modelSelect) {
+        return;
+    }
+    
+    modelSelect.addEventListener('change', async (e) => {
         const modelName = e.target.value;
         try {
             const response = await fetch('/api/config/model', {
@@ -341,16 +400,64 @@ function setupModelSwitching() {
             addMessage('切换模型失败，请重试', 'error');
         }
     });
+    
+    // 标记为已设置
+    modelSwitchingSetup = true;
 }
+
 // 共用的自动调整输入框高度
 function autoResizeTextarea() {
-    messageInput.style.height = 'auto';
-    messageInput.style.height = messageInput.scrollHeight + 'px';
+    // 如果已经设置过，则返回
+    if (window.textareaResizeSetup) {
+        return;
+    }
+    
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        // 设置初始高度
+        messageInput.style.height = 'auto';
+        messageInput.style.height = messageInput.scrollHeight + 'px';
+        
+        // 为输入区域添加事件监听
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+        
+        // Enter 键发送消息，Shift+Enter 换行
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('send-button').click();
+            }
+        });
+    }
+    
+    // 标记为已设置
+    window.textareaResizeSetup = true;
 }
+
 // 添加输入区域折叠功能
+let inputCollapseSetup = false;
 function setupInputCollapse() {
+    // 如果已经设置过，则跳过
+    if (inputCollapseSetup) {
+        return;
+    }
+    
     const chatInput = document.querySelector('.chat-input');
     const chatMessages = document.getElementById('chat-messages');
+    
+    if (!chatInput || !chatMessages) {
+        return;
+    }
+    
+    // 检查是否已经存在折叠按钮
+    if (document.querySelector('.input-collapse-btn')) {
+        inputCollapseSetup = true;
+        return;
+    }
+    
     // 创建折叠按钮
     const collapseBtn = document.createElement('button');
     collapseBtn.className = 'input-collapse-btn';
@@ -381,12 +488,14 @@ function setupInputCollapse() {
         }
         
         // 滚动到底部
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
     
     // 监听折叠按钮点击
     collapseBtn.addEventListener('click', toggleCollapse);
     
+    // 标记为已设置
+    inputCollapseSetup = true;
 }
 
 // 修改历史对话处理函数
@@ -543,6 +652,40 @@ function loadChat(chatType, chatId) {
             messageDiv.appendChild(iconDiv);
             messageDiv.appendChild(contentDiv);
             
+            // 如果是用户消息，且不是raw_chat模式，添加相关问题和参考文件按钮
+            if (msg.type === 'user' && chatType !== 'raw') {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                
+                // 相关问题按钮
+                const relatedQuestionsBtn = document.createElement('button');
+                relatedQuestionsBtn.className = 'related-questions-btn';
+                relatedQuestionsBtn.innerHTML = '<i class="fas fa-question-circle"></i>';
+                relatedQuestionsBtn.title = '查看相关问题';
+                relatedQuestionsBtn.onclick = () => fetchRelatedQuestions(msg.content, messageDiv);
+                
+                // 参考文件按钮
+                const referenceFilesBtn = document.createElement('button');
+                referenceFilesBtn.className = 'reference-files-btn';
+                referenceFilesBtn.innerHTML = '<i class="fas fa-file-alt"></i>';
+                referenceFilesBtn.title = '查看参考文件';
+                referenceFilesBtn.onclick = () => fetchReferenceFiles(msg.content, messageDiv);
+                
+                // 相关上下文按钮
+                const relatedContextsBtn = document.createElement('button');
+                relatedContextsBtn.className = 'related-contexts-btn';
+                relatedContextsBtn.innerHTML = '<i class="fas fa-book-open"></i>';
+                relatedContextsBtn.title = '查看相关上下文';
+                relatedContextsBtn.onclick = () => fetchRelatedContexts(msg.content, messageDiv);
+                
+                actionsDiv.appendChild(relatedQuestionsBtn);
+                actionsDiv.appendChild(referenceFilesBtn);
+                actionsDiv.appendChild(relatedContextsBtn);
+                
+                // 将操作按钮放在内容后面
+                messageDiv.appendChild(actionsDiv);
+            }
+            
             chatMessages.appendChild(messageDiv);
         });
         
@@ -551,10 +694,9 @@ function loadChat(chatType, chatId) {
             item.classList.toggle('active', item.dataset.id === chatId);
         });
         
-        scrollToBottom();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 }
-
 function deleteChat(chatType, chatId) {
     if (confirm('确定要删除此对话？')) {
         let history = JSON.parse(localStorage.getItem(`${chatType}_history`) || '[]');
@@ -565,25 +707,40 @@ function deleteChat(chatType, chatId) {
 }
 
 function setupChatHistory(chatType) {
+    // 初始化标记
+    const setupKey = `${chatType}_history_setup`;
+    
+    // 如果已设置，则返回
+    if (window[setupKey]) {
+        return;
+    }
+    
     // 加载历史对话
     loadChatHistory(chatType);
     
     // 新对话按钮事件
     const newChatBtn = document.getElementById('new-chat-btn');
     if (newChatBtn) {
-        newChatBtn.addEventListener('click', () => {
-            // 重置当前对话ID
-            currentChatId = null;
-            
-            // 显示欢迎信息
-            showWelcomeMessage(chatType);
-            
-            // 清除活动状态
-            document.querySelectorAll('.chat-history-item').forEach(item => {
-                item.classList.remove('active');
+        // 检查是否已经有点击事件
+        if (!newChatBtn._hasClickHandler) {
+            newChatBtn.addEventListener('click', () => {
+                // 重置当前对话ID
+                currentChatId = null;
+                
+                // 显示欢迎信息
+                showWelcomeMessage(chatType);
+                
+                // 清除活动状态
+                document.querySelectorAll('.chat-history-item').forEach(item => {
+                    item.classList.remove('active');
+                });
             });
-        });
+            newChatBtn._hasClickHandler = true;
+        }
     }
+    
+    // 标记为已设置
+    window[setupKey] = true;
 }
 
 // 添加一个显示欢迎信息的函数
@@ -613,14 +770,6 @@ function showWelcomeMessage(chatType) {
                 </div>
             `;
             break;
-        default:
-            welcomeContent = `
-                <div class="welcome-message">
-                    <i class="fas fa-robot"></i>
-                    <h3>欢迎使用</h3>
-                    <p>您可以开始输入任何问题...</p>
-                </div>
-            `;
     }
     
     chatMessages.innerHTML = welcomeContent;
@@ -635,7 +784,6 @@ async function sendChatMessage({
     modelName = null,          // 模型名称
     temperature = 0.7,         // 温度参数
     systemPrompt = null,       // 系统提示（可选）
-    fallbackEndpoint = null    // 备选 API 端点
 }) {
     if (!message || !message.trim()) return null;
     
@@ -682,6 +830,7 @@ async function sendChatMessage({
                 if (contextData.status === 'success') {
                     // 使用上下文数据作为系统提示
                     systemPrompt = contextData.context;
+                    console.log(systemPrompt);
                 } else {
                     throw new Error(contextData.message || '获取上下文失败');
                 }
@@ -729,35 +878,373 @@ async function sendChatMessage({
         
         // 显示错误消息
         addMessage(`<div class="error">发送消息失败：${error.message}</div>`, 'assistant');
-        
-        // 如果有备选 API，尝试使用
-        if (fallbackEndpoint) {
-            try {
-                const fallbackResponse = await fetch(fallbackEndpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message,
-                        temperature: temperature,
-                        stream: true
-                    })
-                });
-                
-                const data = await fallbackResponse.json();
-                if (data.status === 'success') {
-                    // 移除错误消息
-                    chatMessages.removeChild(chatMessages.lastChild);
-                    // 添加正确的响应
-                    addMessage(data.response, 'assistant');
-                    saveChat(chatType, document.querySelectorAll('#chat-messages > div'));
-                    return true;
-                }
-            } catch (fallbackError) {
-                console.error('备选API也失败:', fallbackError);
-            }
+    }
+}
+
+// 获取相关问题
+async function fetchRelatedQuestions(question, messageDiv) {
+    try {
+        // 检查是否已经有相关问题容器
+        const existingContainer = messageDiv.querySelector('.related-questions-container');
+        if (existingContainer) {
+            existingContainer.style.display = existingContainer.style.display === 'none' ? 'block' : 'none';
+            return;
         }
         
-        throw error; // 重新抛出错误，以便外部代码可以捕获
+        // 创建加载指示器
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载相关问题...';
+        messageDiv.appendChild(loadingIndicator);
+        
+        // 请求相关问题
+        const response = await fetch('/api/related_questions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ question })
+        });
+        
+        const data = await response.json();
+        
+        // 移除加载指示器
+        messageDiv.removeChild(loadingIndicator);
+        
+        if (data.status === 'success') {
+            // 创建相关问题容器
+            const container = document.createElement('div');
+            container.className = 'related-questions-container';
+            
+            // 添加标题
+            const title = document.createElement('h4');
+            title.innerHTML = '<i class="fas fa-question-circle"></i> 相关问题';
+            container.appendChild(title);
+            
+            // 创建问题列表
+            const questionsList = document.createElement('ul');
+            questionsList.className = 'related-questions-list';
+            
+            data.questions.forEach(q => {
+                const questionItem = document.createElement('li');
+                questionItem.className = 'related-question-item';
+                questionItem.textContent = q;
+                
+                // 点击问题时，将其填入输入框
+                questionItem.addEventListener('click', () => {
+                    document.getElementById('message-input').value = q;
+                    document.getElementById('message-input').focus();
+                    autoResizeTextarea();
+                    
+                    // 隐藏相关问题容器
+                    container.style.display = 'none';
+                });
+                
+                questionsList.appendChild(questionItem);
+            });
+            
+            container.appendChild(questionsList);
+            
+            // 添加到消息操作按钮之后
+            const actionsDiv = messageDiv.querySelector('.message-actions');
+            if (actionsDiv) {
+                // 将相关问题容器插入到操作按钮后面
+                messageDiv.insertBefore(container, actionsDiv.nextSibling);
+            } else {
+                // 如果没有操作按钮，直接添加到消息末尾
+                messageDiv.appendChild(container);
+            }
+        } else {
+            console.error('获取相关问题失败:', data.message);
+        }
+    } catch (error) {
+        console.error('获取相关问题出错:', error);
+    }
+}
+
+// 获取参考文件
+async function fetchReferenceFiles(question, messageDiv) {
+    try {
+        // 检查是否已经有参考文件容器
+        const existingContainer = messageDiv.querySelector('.reference-files-container');
+        if (existingContainer) {
+            existingContainer.style.display = existingContainer.style.display === 'none' ? 'block' : 'none';
+            return;
+        }
+        
+        // 创建加载指示器
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载参考文件...';
+        messageDiv.appendChild(loadingIndicator);
+        
+        // 请求参考文件
+        const response = await fetch('/api/reference_files', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ question })
+        });
+        
+        const data = await response.json();
+        
+        // 移除加载指示器
+        messageDiv.removeChild(loadingIndicator);
+        
+        if (data.status === 'success') {
+            // 创建参考文件容器
+            const container = document.createElement('div');
+            container.className = 'reference-files-container';
+            
+            // 添加标题
+            const title = document.createElement('h4');
+            title.innerHTML = '<i class="fas fa-file-alt"></i> 参考文件';
+            container.appendChild(title);
+            
+            if (data.reference_files.length === 0) {
+                const noFiles = document.createElement('p');
+                noFiles.className = 'no-files-message';
+                noFiles.textContent = '没有找到相关参考文件';
+                container.appendChild(noFiles);
+            } else {
+                // 创建文件列表
+                const filesList = document.createElement('ul');
+                filesList.className = 'reference-files-list';
+                
+                data.reference_files.forEach(file => {
+                    const fileItem = document.createElement('li');
+                    fileItem.className = 'reference-file-item';
+                    
+                    // 根据文件类型选择图标
+                    let iconClass = 'fa-file-alt';
+                    switch(file.file_type) {
+                        case 'pdf':
+                            iconClass = 'fa-file-pdf';
+                            break;
+                        case 'docx':
+                        case 'doc':
+                            iconClass = 'fa-file-word';
+                            break;
+                        case 'csv':
+                            iconClass = 'fa-file-csv';
+                            break;
+                        case 'md':
+                            iconClass = 'fab fa-markdown';
+                            break;
+                    }
+                    
+                    fileItem.innerHTML = `
+                        <i class="fas ${iconClass}"></i>
+                        <span class="file-name">${file.file_path}</span>
+                        <span class="file-score">${(file.score * 100).toFixed(1)}%</span>
+                    `;
+                    
+                    // 点击文件时，预览文件
+                    fileItem.addEventListener('click', async () => {
+                        try {
+                            const previewResponse = await fetch('/api/documents/preview', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ file_path: file.file_path })
+                            });
+                            
+                            const previewData = await previewResponse.json();
+                            
+                            if (previewData.status === 'success') {
+                                // 创建预览模态框
+                                const previewModal = document.createElement('div');
+                                previewModal.className = 'preview-modal';
+                                
+                                let previewContent = '';
+                                switch(previewData.type) {
+                                    case 'html_table':
+                                        previewContent = `
+                                            <div class="preview-modal-content csv-preview">
+                                                <span class="preview-close">&times;</span>
+                                                <h3>CSV文件预览：${file.file_path}</h3>
+                                                <div class="table-container">
+                                                    ${previewData.content}
+                                                </div>
+                                            </div>
+                                        `;
+                                        break;
+                                    case 'html':
+                                        previewContent = `
+                                            <div class="preview-modal-content rich-preview">
+                                                <span class="preview-close">&times;</span>
+                                                <h3>文档预览：${file.file_path}</h3>
+                                                <div class="preview-content">
+                                                    ${previewData.content}
+                                                </div>
+                </div>
+            `;
+            break;
+        default:
+                                        previewContent = `
+                                            <div class="preview-modal-content text-preview">
+                                                <span class="preview-close">&times;</span>
+                                                <h3>文档预览：${file.file_path}</h3>
+                                                <pre>${previewData.content}</pre>
+                </div>
+            `;
+    }
+    
+                                previewModal.innerHTML = previewContent;
+                                
+                                document.body.appendChild(previewModal);
+                                
+                                // 关闭模态框
+                                previewModal.querySelector('.preview-close').addEventListener('click', () => {
+                                    document.body.removeChild(previewModal);
+                                });
+                            } else {
+                                console.error('预览文件失败:', previewData.message);
+                            }
+                        } catch (error) {
+                            console.error('预览文件时出错:', error);
+                        }
+                    });
+                    
+                    filesList.appendChild(fileItem);
+                });
+                
+                container.appendChild(filesList);
+            }
+            
+            // 添加到消息操作按钮之后
+            const actionsDiv = messageDiv.querySelector('.message-actions');
+            if (actionsDiv) {
+                // 将参考文件容器插入到操作按钮后面，如果有相关问题容器，则插在其后
+                const questionsContainer = messageDiv.querySelector('.related-questions-container');
+                if (questionsContainer) {
+                    messageDiv.insertBefore(container, questionsContainer.nextSibling);
+                } else {
+                    messageDiv.insertBefore(container, actionsDiv.nextSibling);
+                }
+            } else {
+                // 如果没有操作按钮，直接添加到消息末尾
+                messageDiv.appendChild(container);
+            }
+        } else {
+            console.error('获取参考文件失败:', data.message);
+        }
+    } catch (error) {
+        console.error('获取参考文件出错:', error);
+    }
+}
+
+// 获取相关上下文
+async function fetchRelatedContexts(question, messageDiv) {
+    try {
+        // 检查是否已经有相关上下文容器
+        const existingContainer = messageDiv.querySelector('.related-contexts-container');
+        if (existingContainer) {
+            existingContainer.style.display = existingContainer.style.display === 'none' ? 'block' : 'none';
+            return;
+        }
+        
+        // 创建加载指示器
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载相关上下文...';
+        messageDiv.appendChild(loadingIndicator);
+        
+        // 请求相关上下文
+        const response = await fetch('/api/reference_files', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ question })
+        });
+        
+        const data = await response.json();
+        console.log(data);
+        // 移除加载指示器
+        messageDiv.removeChild(loadingIndicator);
+        
+        if (data.status === 'success' && data.reference_contents && data.reference_contents.length > 0) {
+            console.log(data.reference_contents);
+            // 创建相关上下文容器
+            const container = document.createElement('div');
+            container.className = 'related-contexts-container';
+            
+            // 添加标题
+            const title = document.createElement('h4');
+            title.innerHTML = '<i class="fas fa-book-open"></i> 相关上下文';
+            container.appendChild(title);
+            
+            if (data.reference_contents.length === 0) {
+                const noContexts = document.createElement('p');
+                noContexts.className = 'no-contexts-message';
+                noContexts.textContent = '没有找到相关上下文';
+                container.appendChild(noContexts);
+            } else {
+                // 创建上下文列表
+                const contextsList = document.createElement('div');
+                contextsList.className = 'related-contexts-list';
+                
+                data.reference_contents.forEach((ctx, index) => {
+                    const contextItem = document.createElement('div');
+                    contextItem.className = 'related-context-item';
+                    
+                    // 创建标题栏
+                    const titleBar = document.createElement('div');
+                    titleBar.className = 'context-title-bar';
+                    
+                    // 获取文件名（不带路径）
+                    const fileName = ctx.file_path.split('/').pop();
+                    titleBar.innerHTML = `
+                        <span class="file-name"><i class="fas fa-file-alt"></i> ${fileName}</span>
+                        <span class="context-score">${(ctx.score * 100).toFixed(1)}%</span>
+                    `;
+                    
+                    // 创建内容区域
+                    const contentArea = document.createElement('div');
+                    contentArea.className = 'context-content';
+                    contentArea.textContent = ctx.content;
+                    
+                    // 将标题栏和内容添加到项目中
+                    contextItem.appendChild(titleBar);
+                    contextItem.appendChild(contentArea);
+                    
+                    // 添加展开/收起切换功能
+                    titleBar.addEventListener('click', () => {
+                        contextItem.classList.toggle('expanded');
+                    });
+                    
+                    contextsList.appendChild(contextItem);
+                });
+                
+                container.appendChild(contextsList);
+            }
+            
+            // 添加到消息操作按钮之后
+            const actionsDiv = messageDiv.querySelector('.message-actions');
+            if (actionsDiv) {
+                // 确定插入位置，考虑到可能已有其他容器
+                const questionsContainer = messageDiv.querySelector('.related-questions-container');
+                const filesContainer = messageDiv.querySelector('.reference-files-container');
+                
+                if (filesContainer) {
+                    messageDiv.insertBefore(container, filesContainer.nextSibling);
+                } else if (questionsContainer) {
+                    messageDiv.insertBefore(container, questionsContainer.nextSibling);
+                } else {
+                    messageDiv.insertBefore(container, actionsDiv.nextSibling);
+                }
+            } else {
+                // 如果没有操作按钮，直接添加到消息末尾
+                messageDiv.appendChild(container);
+            }
+        } else {
+            console.error('获取相关上下文失败:', data.message || '未找到相关上下文');
+        }
+    } catch (error) {
+        console.error('获取相关上下文出错:', error);
     }
 }
 
@@ -779,5 +1266,8 @@ export {
     showWelcomeMessage,
     sendChatMessage,
     scrollToBottom,
+    fetchReferenceFiles,
+    fetchRelatedQuestions,
+    fetchRelatedContexts,
     currentChatId
 }; 

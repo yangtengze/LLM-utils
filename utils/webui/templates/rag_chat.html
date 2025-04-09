@@ -99,8 +99,8 @@ async function loadDocuments() {
             documentsList.innerHTML = data.map(doc => {
                 const relativePath = doc.file_path.split('/').slice(-2).join('/');
                 const fileExt = relativePath.split('.').pop().toLowerCase();
-                const filePaths = relativePath.split('/');
-                console.log(filePaths);
+                // const filePaths = relativePath.split('/');
+                // console.log(filePaths);
                 // 根据文件类型选择不同的图标
                 let iconClass = 'fa-file-alt';
                 switch(fileExt) {
@@ -251,8 +251,7 @@ async function sendMessage() {
         await sendChatMessage({
             message: message,
             chatType: 'rag',
-            contextEndpoint: '/api/chat/rag/prompt',
-            fallbackEndpoint: '/api/chat/rag'
+            contextEndpoint: '/api/chat/rag/prompt'
         });
     } catch (error) {
         console.error('消息发送完全失败:', error);

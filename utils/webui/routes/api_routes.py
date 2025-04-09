@@ -3,16 +3,16 @@ from utils.rag import Rag
 from utils.load_config import configs
 from werkzeug.utils import secure_filename
 from utils.documents_preview import *
+from utils.ocr_manager import get_ocr_engine
+from utils.base_func import *
 import os
 import re
-from utils.ocr_manager import get_ocr_engine
 
-# import utils.multimodal_utils as multimodal_utils
 api = Blueprint('api', __name__)
 
+# 直接初始化 Rag 实例
 rag = Rag()
 rag.load_documents(rag.files)
-
 
 @api.route('/config', methods=['GET'])
 def get_config():
@@ -42,9 +42,8 @@ def update_model():
                 'message': '不支持的模型'
             }), 400
             
-        # 更新 RAG 和 Agent 的模型配置
+        # 更新 RAG 模型配置
         rag.llm_model = model_name
-        agent.config['llm']['model'] = model_name
         
         return jsonify({
             'status': 'success',
@@ -56,20 +55,22 @@ def update_model():
             'message': str(e)
         }), 500
 
-@api.route('/chat/raw', methods=['POST'])
-def raw_chat():
-    """原始对话接口"""
+@api.route('/chat_completions', methods=['POST'])
+def chat_completions():
+    """与聊天模型进行交互，生成基于用户输入的自然语言响应"""
     data = request.get_json()
     message = data.get('message', '')
-    temperature = data.get('temperature', 0.7)  # 获取温度参数
+    temperature = data.get('temperature', 0.7)
+    model_name = data.get('model', configs['ollama']['default_model'])
+    system_prompt = data.get('system_prompt', '')
     
     try:
         # 临时更新温度设置
         original_temp = rag.config['ollama']['temperature']
         rag.config['ollama']['temperature'] = temperature
         
-        # 调用 LLM
-        response = rag._call_language_model(message)
+        # 调用 LLM，传递系统提示
+        response = call_language_model(message, system_prompt=system_prompt)
         
         # 恢复原始温度设置
         rag.config['ollama']['temperature'] = original_temp
@@ -77,6 +78,7 @@ def raw_chat():
         return jsonify({
             'status': 'success',
             'response': response,
+            'model': model_name,
             'latex': re.findall(r'\\(?:begin|end)\{[a-z]*\}|\\.|[{}]|\$', response)  # 公式检测
         })
     except Exception as e:
@@ -85,18 +87,43 @@ def raw_chat():
             'message': str(e)
         }), 500
 
-@api.route('/chat/rag', methods=['POST'])
-def rag_chat():
-    """RAG 对话接口"""
+@api.route('/related_questions', methods=['POST'])
+def related_questions():
+    """获取与用户提供的问题相关的问题列表"""
     data = request.get_json()
-    message = data.get('message', '')
+    question = data.get('question', '')
+    count = data.get('count', 5)  # 默认返回5个相关问题
     
     try:
-        response = rag.generate_response(message)
+        # 使用 RAG 系统生成相关问题
+        # 这里使用一个特定的提示词来引导模型生成相关问题
+        system_prompt = f"""
+        请基于以下问题，生成{count}个相关的、用户可能会感兴趣的后续问题。
+        问题应该多样化，覆盖不同的角度和相关主题。
+        只返回问题列表，每个问题一行，前面加上数字编号。
+        """
+        # 调用语言模型，使用系统提示和问题内容
+        response = call_language_model(question, system_prompt=system_prompt)
+        
+        # 解析出单独的问题
+        questions = []
+        for line in response.strip().split('\n'):
+            line = line.strip()
+            # 匹配形如 "1. 问题内容" 的格式
+            match = re.match(r'^\d+\.?\s+(.+)$', line)
+            if match and match.group(1):
+                questions.append(match.group(1))
+        
+        # 如果没有提取到有效问题，或者提取的问题少于要求，返回一个错误
+        if len(questions) < 1:
+            return jsonify({
+                'status': 'error',
+                'message': '无法生成相关问题'
+            }), 500
+        
         return jsonify({
             'status': 'success',
-            'response': response,
-            'latex': re.findall(r'\\(?:begin|end)\{[a-z]*\}|\\.|[{}]|\$', response)  # 公式检测
+            'questions': questions
         })
     except Exception as e:
         return jsonify({
@@ -104,28 +131,74 @@ def rag_chat():
             'message': str(e)
         }), 500
 
-@api.route('/chat/rag/related_context', methods=['POST'])
-def get_related_context():
-    """获取 RAG 相关文档内容接口"""
+@api.route('/reference_files', methods=['POST'])
+def reference_files():
+    """检索与特定问题相关的参考文件"""
     data = request.get_json()
-    message = data.get('message', '')
+    question_id = data.get('question_id')
+    question = data.get('question', '')
     
     try:
-        # 使用 RAG 系统检索相关文档，但不生成回复
-        context = rag.get_context(message)
+        # 如果有问题ID但没有问题内容，尝试从某处获取问题内容
+        if question_id and not question:
+            # 这里假设有一个存储问题的机制，可以根据ID查询问题内容
+            # 实际实现时需要替换为真实的查询逻辑
+            # question = get_question_by_id(question_id)
+            pass
         
-        # 如果 get_context 方法不存在，可以编写一个通用实现
-        # 这里假设 rag 对象有一个检索上下文的方法
-        # 如果没有，需要直接访问 rag 内部方法获取上下文
+        if not question:
+            return jsonify({
+                'status': 'error',
+                'message': '未提供有效的问题内容'
+            }), 400
+        
+        # 使用 RAG 系统进行文档检索
+        # 获取与问题最相关的文档
+        relevant_docs = rag.retrieve_documents(question)
+        
+        # 处理结果，提取文件信息并确保可序列化
+        reference_contents = []
+        reference_files = []
+        for doc in relevant_docs:
+            file_content = doc.get('content', '')
+
+            file_path = doc.get('file_path', '')
+            # 将绝对路径转换为相对于项目根目录的路径
+            relative_path = os.path.relpath(file_path, os.getcwd()) if file_path else ''
+            
+            # 确保分数是标准Python浮点数
+            score = float(doc.get('score', 0))
+            
+            # 获取文件类型
+            file_ext = os.path.splitext(file_path)[1].lower().lstrip('.')
+            
+            # 检查这个文件是否已经在列表中
+            if not any(ref['file_path'] == relative_path for ref in reference_files):
+                reference_files.append({
+                    'file_path': relative_path,
+                    'score': score,
+                    'file_type': file_ext,
+                    'timestamp': str(doc.get('timestamp', ''))
+                })
+            reference_contents.append({
+                'file_path': relative_path,
+                'score': score,
+                'content': file_content
+            })
         
         return jsonify({
             'status': 'success',
-            'context': context
+            'question': question,
+            'question_id': question_id,
+            'reference_files': reference_files,
+            'reference_contents': reference_contents
         })
+    
     except Exception as e:
+        print(f"获取参考文件失败: {e}")
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': f'获取参考文件失败: {str(e)}'
         }), 500
 
 @api.route('/chat/rag/prompt', methods=['POST'])
@@ -266,21 +339,3 @@ def upload_files():
             'message': f'上传文件失败: {str(e)}'
         }), 500
 
-@api.route('/ocr/process', methods=['POST'])
-def process_image():
-    """处理图片OCR"""
-    try:
-        # 获取共享的OCR引擎
-        ocr_engine = get_ocr_engine()
-        
-        # 使用OCR引擎处理图片...
-        
-        return jsonify({
-            'status': 'success',
-            'result': result
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500

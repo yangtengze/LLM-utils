@@ -657,7 +657,7 @@ body {
 .temperature-slider {
     flex-grow: 1;
     height: 4px;
-    -webkit-appearance: none;
+    /* -webkit-appearance: none; */
     background: var(--border-color);
     border-radius: 2px;
     outline: none;
@@ -1209,4 +1209,261 @@ body {
 .chat-history-delete:hover {
     color: var(--accent-color);
 }
+/* 消息动作按钮 */
+.message-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+    margin-left: auto; /* 自动左边距使按钮靠右 */
+    position: relative; /* 改为相对定位 */
+    justify-content: flex-end; /* 按钮靠右对齐 */
+    padding-right: 10px;
+    opacity: 0.5; /* 默认半透明 */
+    transition: opacity 0.3s;
+}
 
+/* 当鼠标悬停在消息上时，显示操作按钮 */
+.message:hover .message-actions {
+    opacity: 1;
+}
+
+/* 用户消息的动作按钮单独处理 */
+.user-message .message-actions {
+    flex-direction: row-reverse; /* 反转排列方向以匹配用户消息的反向布局 */
+    padding-right: 0;
+    padding-left: 10px;
+}
+
+.related-questions-btn,
+.reference-files-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 1rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.related-questions-btn:hover,
+.reference-files-btn:hover {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+/* 相关问题容器 */
+.related-questions-container,
+.reference-files-container {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    padding: 12px;
+    max-width: 100%;
+    width: 100%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-left: 40px; /* 与消息图标对齐 */
+}
+
+/* 针对用户消息的容器特别处理 */
+.user-message .related-questions-container,
+.user-message .reference-files-container {
+    margin-left: 0;
+    margin-right: 40px;
+}
+
+.related-questions-container h4,
+.reference-files-container h4 {
+    font-size: 1rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.related-questions-list,
+.reference-files-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.related-question-item {
+    padding: 8px 10px;
+    background-color: white;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    border-left: 3px solid var(--secondary-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.related-question-item:hover {
+    background-color: #e9f5ff;
+    transform: translateX(5px);
+}
+
+/* 参考文件项 */
+.reference-file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background-color: white;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.reference-file-item:hover {
+    background-color: #e9f5ff;
+}
+
+.reference-file-item .file-name {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.reference-file-item .file-score {
+    background-color: #e9ecef;
+    color: var(--primary-color);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+}
+
+.loading-indicator {
+    margin: 10px 0;
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.no-files-message {
+    color: #999;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+}
+
+/* 相关上下文按钮 */
+.related-contexts-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 1rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.related-contexts-btn:hover {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+/* 相关上下文容器 */
+.related-contexts-container {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    padding: 12px;
+    max-width: 100%;
+    width: 100%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-left: 40px; /* 与消息图标对齐 */
+}
+
+.user-message .related-contexts-container {
+    margin-left: 0;
+    margin-right: 40px;
+}
+
+.related-contexts-container h4 {
+    font-size: 1rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.related-contexts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.related-context-item {
+    background-color: white;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-left: 3px solid var(--secondary-color);
+}
+
+.context-title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #f0f4f8;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+}
+
+.context-title-bar:hover {
+    background-color: #e9f5ff;
+}
+
+.context-title-bar .file-name {
+    font-weight: 500;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.context-title-bar .context-score {
+    background-color: #e0ebf5;
+    color: var(--primary-color);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+}
+
+.context-content {
+    padding: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.related-context-item.expanded .context-content {
+    padding: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.no-contexts-message {
+    color: #999;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+}

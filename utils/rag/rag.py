@@ -4,7 +4,6 @@ from utils.base_func import parse_response
 from typing import List, Dict
 from pathlib import Path
 import numpy as np
-import requests
 from tqdm import tqdm
 from FlagEmbedding import FlagModel
 import numpy as np
@@ -37,7 +36,6 @@ class Rag:
                   use_fp16=True,devices=self.device)
 
         self.top_k = self.config['rag']['retrieval']['top_k']
-        self.stream = self.config['ollama']['stream']
         self.score_threshold = self.config['rag']['retrieval']['score_threshold']
         self.similarity_metric = self.config['rag']['vector_store']['similarity_metric']
 
@@ -80,37 +78,54 @@ class Rag:
         with open(self._get_metadata_path(), "w", encoding="utf-8") as f:
             json.dump(self.docs, f, ensure_ascii=False, indent=2)
     
-    def _cosine_similarity(self,query_vector,doc_vectors):
-        # 计算余弦相似度
-        '''
+    def _cosine_similarity(self, query_vector, doc_vectors):
+        """
+        计算余弦相似度 - 向量化计算
+        
         余弦相似度计算公式:
         cos(θ) = (A·B) / (|A|·|B|)
         其中,A和B是两个向量,A·B是它们的点积,|A|和|B|是它们的模。
-
-        query_vector: 查询向量，形状为 (1, embedding_dim)
-        doc_vectors: 文档向量，形状为 (num_docs, embedding_dim)
-        '''
-        scores = []
-        for i in range(len(doc_vectors)):
-            score = np.dot(query_vector, doc_vectors[i]) / (np.linalg.norm(query_vector) * np.linalg.norm(doc_vectors[i]))
-            scores.append(score)
-        return np.array(scores)
+        
+        参数:
+            query_vector: 查询向量，形状为 (1, embedding_dim)
+            doc_vectors: 文档向量，形状为 (num_docs, embedding_dim)
+        返回:
+            一维numpy数组，包含所有文档的相似度分数
+        """
+        # 计算点积
+        dot_products = np.dot(query_vector, doc_vectors.T).flatten()
+        
+        # 计算模
+        query_norm = np.linalg.norm(query_vector)
+        doc_norms = np.linalg.norm(doc_vectors, axis=1)
+        
+        # 计算余弦相似度
+        similarities = dot_products / (query_norm * doc_norms)
+        
+        return similarities
     
-    def _l2_similarity(self,query_vector,doc_vectors):
-        # 计算L2相似度
-        '''
+    def _l2_similarity(self, query_vector, doc_vectors):
+        """
+        计算L2相似度（欧氏距离）- 向量化计算
+        
         L2相似度计算公式:
         d(A,B) = sqrt(sum((A_i - B_i)^2))
-        其中,A和B是两个向量,A_i和B_i是它们的第i个元素。
-
-        query_vector: 查询向量，形状为 (1, embedding_dim)
-        doc_vectors: 文档向量，形状为 (num_docs, embedding_dim)
-        '''
-        scores = []
-        for i in range(len(doc_vectors)):
-            score = np.linalg.norm(query_vector - doc_vectors[i])
-            scores.append(score)
-        return np.array(scores)
+        
+        参数:
+            query_vector: 查询向量，形状为 (1, embedding_dim)
+            doc_vectors: 文档向量，形状为 (num_docs, embedding_dim)
+        返回:
+            一维numpy数组，包含所有文档的相似度分数（距离越小，相似度越高）
+        """
+        # 计算欧氏距离
+        # 使用广播机制：(1, dim) - (num_docs, dim) => (num_docs, dim)
+        distances = np.linalg.norm(query_vector - doc_vectors, axis=1)
+        
+        # 由于欧氏距离越小表示越相似，为了保持与余弦相似度一致（值越大越相似）
+        # 我们可以对距离取负值或倒数，这里选择取负值
+        similarities = -distances
+        
+        return similarities
         
     def load_documents(self, file_paths: List[str]) -> None:
         """
@@ -190,11 +205,12 @@ class Rag:
         if self._get_metadata_path().exists():
             os.remove(self._get_metadata_path())
     
-    def retrieve_documents(self, query: str, top_k: int = None) -> List[Dict]:
+    def retrieve_documents(self, query: str, top_k: int = None, threshold: float = 0.4) -> List[Dict]:
         """
         检索相关文档并返回带路径的结果
         :param query: 查询文本
         :param top_k: 返回结果数量
+        :param threshold: 相似度阈值，低于此值的文档将被过滤
         :return: 包含路径和内容的文档列表
         """
         if top_k is None:
@@ -210,32 +226,54 @@ class Rag:
         # doc_vectors.shape: (num_docs, 1024)
         # 计算相似度
         if self.similarity_metric == "cosine":
-            similarities = self._cosine_similarity(query_vector, self.doc_vectors).flatten()
+            similarities = self._cosine_similarity(query_vector, self.doc_vectors)
         elif self.similarity_metric == "l2":
-            similarities = self._l2_similarity(query_vector, self.doc_vectors).flatten()
+            similarities = self._l2_similarity(query_vector, self.doc_vectors)
+            # 对于L2距离，我们使用的是负距离，需要调整阈值
+            threshold = -threshold if threshold > 0 else threshold
         else:
             raise ValueError(f"不支持的相似度计算方式: {self.similarity_metric}")
         
         # 确保 top_k 不超过可用文档数量
         top_k = min(top_k, len(self.docs))
-        sorted_indices = np.argsort(similarities)[::-1][:top_k]
-
-        return [{
-            "score": similarities[i],
-            "content": self.docs[i]["content"],
-            "file_path": self.docs[i]["file_path"]
-        } for i in sorted_indices]
+        
+        # 先获取排序后的索引
+        sorted_indices = np.argsort(similarities)[::-1]
+        
+        # 创建结果列表
+        results = []
+        
+        # 遍历排序后的前top_k个文档
+        for i in sorted_indices[:top_k]:
+            # 检查相似度是否高于阈值
+            score = float(similarities[i])  # 确保转换为Python float类型
+            if self.similarity_metric == "cosine" and score < threshold:
+                # 对于余弦相似度，小于阈值则跳过
+                continue
+            elif self.similarity_metric == "l2" and score < threshold:
+                # 对于L2距离（已取负值），小于阈值则跳过
+                continue
+                
+            # 添加到结果列表
+            results.append({
+                "score": score,
+                "content": self.docs[i]["content"],
+                "file_path": self.docs[i]["file_path"]
+            })
+            
+        return results
     
-    def generate_prompt(self, query: str, top_k: int = None) -> str:
+    def generate_prompt(self, query: str, top_k: int = None, threshold: float = 0.4) -> str:
         """
         生成 RAG 提示
         :param query: 用户查询
         :param top_k: 返回最相关的 top_k 文档
+        :param threshold: 相似度阈值，低于此值的文档将被过滤
         :return: 生成的提示文本
         """
         if top_k is None:
             top_k = self.top_k
-        relevant_docs = self.retrieve_documents(query, top_k)
+        relevant_docs = self.retrieve_documents(query, top_k, threshold)
         prompt = f"""
         请根据相关文档回答用户查询的问题。若有的文档不相关，尽量不要输出与不相关文档的内容，并根据你自己来输出。
 
@@ -249,57 +287,6 @@ class Rag:
             {doc['content']}
             相似度得分: {doc['score']:.4f}\n\n
             """
-        return prompt
-    
-    def generate_response(self, query: str) -> str:
-        """
-        生成最终响应
-        :param query: 用户查询
-        :return: 生成的响应文本
-        """
-        prompt = self.generate_prompt(query)
-        # print("[DEBUG] 生成的提示:\n", prompt)
-        # 调用生成模型
-        response = self._call_language_model(prompt)
-        return response
-
-    def _call_language_model(self, prompt: str) -> str:
-        """
-        调用语言模型生成响应
-        :param prompt: 提示文本
-        :return: 生成的响应
-        """
-        self.llm_model = self.config['ollama']['default_model']
-        data = {
-            "model": self.llm_model,
-            "prompt": prompt,
-            "stream": self.stream,
-            "options": {
-                "temperature": self.config['ollama']['temperature']
-            },
-        }
-        url = self.config['ollama']['endpoint'] + '/api/generate'
         
-        try:
-            response = requests.post(url, data=json.dumps(data))
-            if response.status_code == 200:
-                return parse_response(response, self.stream)
-            else:
-                error_msg = f"LLM调用失败: HTTP {response.status_code}"
-                print(error_msg)
-                return error_msg
-        except Exception as e:
-            error_msg = f"LLM调用出错: {str(e)}"
-            print(error_msg)
-            return error_msg
-
-# 示例用法
-if __name__ == "__main__":
-    rag = Rag()
-    # 加载文档
-    rag.load_documents(rag.files)
-    
-    # 生成响应
-    query = 'llama2大语言模型的参数量有多少的？'
-    response = rag.generate_response(query)
-    print(response)
+        prompt += "请严格根据以上文档内容回答用户问题，不要添加不存在于文档中的信息。"
+        return prompt
