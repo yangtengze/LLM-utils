@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from utils.rag import Rag
 from utils.load_config import configs
 from werkzeug.utils import secure_filename
@@ -263,6 +263,18 @@ def preview_document():
             }), 400
         
         file_ext = os.path.splitext(file_path)[1].lower()
+        
+        # 对PDF文件进行特殊处理，返回文件URL而不是内容
+        if file_ext == '.pdf':
+            # 构建相对URL路径，用于前端直接嵌入查看
+            relative_url = f"/{file_path}"
+            
+            return jsonify({
+                'status': 'success',
+                'file_path': file_path,
+                'type': 'pdf',
+                'url': relative_url
+            })
         
         preview_func_map = {
             '.csv': preview_csv,

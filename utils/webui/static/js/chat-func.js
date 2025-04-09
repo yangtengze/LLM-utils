@@ -1054,6 +1054,7 @@ async function fetchReferenceFiles(question, messageDiv) {
                             const previewData = await previewResponse.json();
                             
                             if (previewData.status === 'success') {
+                                
                                 // 创建预览模态框
                                 const previewModal = document.createElement('div');
                                 previewModal.className = 'preview-modal';
@@ -1079,19 +1080,38 @@ async function fetchReferenceFiles(question, messageDiv) {
                                                 <div class="preview-content">
                                                     ${previewData.content}
                                                 </div>
-                </div>
-            `;
-            break;
-        default:
+                                            </div>
+                                        `;
+                                        break;
+                                    case 'pdf':
+                                        // 将绝对路径转换为相对路径，并将反斜杠替换为正斜杠
+                                        previewData.url = previewData.url.replace(/\\/g, '/');
+                                        previewContent = `
+                                            <div class="preview-modal-content pdf-preview">
+                                                <span class="preview-close">&times;</span>
+                                                <h3>PDF文档预览：${file.file_path}</h3>
+                                                <div class="preview-content">
+                                                    <embed src="${previewData.url}" type="application/pdf" width="100%" height="600px">
+                                                    <noembed>
+                                                        <p>
+                                                            您的浏览器不支持PDF嵌入式查看。
+                                                            <a href="${previewData.url}" target="_blank">点击此处下载PDF文件</a>
+                                                        </p>
+                                                    </noembed>
+                                                </div>
+                                            </div>
+                                        `;
+                                        break;
+                                    default:
                                         previewContent = `
                                             <div class="preview-modal-content text-preview">
                                                 <span class="preview-close">&times;</span>
                                                 <h3>文档预览：${file.file_path}</h3>
                                                 <pre>${previewData.content}</pre>
-                </div>
-            `;
-    }
-    
+                                            </div>
+                                        `;
+                                }
+                                
                                 previewModal.innerHTML = previewContent;
                                 
                                 document.body.appendChild(previewModal);
@@ -1163,6 +1183,7 @@ async function fetchRelatedContexts(question, messageDiv) {
         
         const data = await response.json();
         console.log(data);
+        
         // 移除加载指示器
         messageDiv.removeChild(loadingIndicator);
         
@@ -1221,6 +1242,146 @@ async function fetchRelatedContexts(question, messageDiv) {
                 
                 container.appendChild(contextsList);
             }
+            
+            // 添加到消息操作按钮之后
+            const actionsDiv = messageDiv.querySelector('.message-actions');
+            if (actionsDiv) {
+                // 确定插入位置，考虑到可能已有其他容器
+                const questionsContainer = messageDiv.querySelector('.related-questions-container');
+                const filesContainer = messageDiv.querySelector('.reference-files-container');
+                
+                if (filesContainer) {
+                    messageDiv.insertBefore(container, filesContainer.nextSibling);
+                } else if (questionsContainer) {
+                    messageDiv.insertBefore(container, questionsContainer.nextSibling);
+                } else {
+                    messageDiv.insertBefore(container, actionsDiv.nextSibling);
+                }
+            } else {
+                // 如果没有操作按钮，直接添加到消息末尾
+                messageDiv.appendChild(container);
+            }
+        } else if (data.status === 'success' && data.reference_files && data.reference_files.length > 0) {
+            // 创建相关上下文容器
+            const container = document.createElement('div');
+            container.className = 'related-contexts-container';
+            
+            // 添加标题
+            const title = document.createElement('h4');
+            title.innerHTML = '<i class="fas fa-book-open"></i> 相关上下文';
+            container.appendChild(title);
+            
+            // 创建上下文列表
+            const contextsList = document.createElement('div');
+            contextsList.className = 'related-contexts-list';
+            
+            data.reference_files.forEach((file, index) => {
+                const contextItem = document.createElement('div');
+                contextItem.className = 'related-context-item';
+                
+                // 创建标题栏
+                const titleBar = document.createElement('div');
+                titleBar.className = 'context-title-bar';
+                
+                // 获取文件名（不带路径）和文件类型
+                const fileName = file.file_path.split('/').pop();
+                const fileExt = file.file_path.split('.').pop().toLowerCase();
+                
+                // 根据文件类型选择图标
+                let iconClass = 'fa-file-alt';
+                switch(fileExt) {
+                    case 'pdf':
+                        iconClass = 'fa-file-pdf';
+                        break;
+                    case 'docx':
+                    case 'doc':
+                        iconClass = 'fa-file-word';
+                        break;
+                    case 'csv':
+                        iconClass = 'fa-file-csv';
+                        break;
+                    case 'md':
+                        iconClass = 'fab fa-markdown';
+                        break;
+                }
+                
+                titleBar.innerHTML = `
+                    <span class="file-name"><i class="fas ${iconClass}"></i> ${fileName}</span>
+                    <span class="context-score">${(file.score * 100).toFixed(1)}%</span>
+                `;
+                
+                // 创建内容区域
+                const contentArea = document.createElement('div');
+                contentArea.className = 'context-content';
+                contentArea.innerHTML = `<div class="context-preview-loading">点击查看文件内容...</div>`;
+                
+                // 点击标题栏时加载文件内容
+                titleBar.addEventListener('click', async () => {
+                    contextItem.classList.toggle('expanded');
+                    
+                    // 如果已经加载了内容，就不再重复加载
+                    if (contentArea.querySelector('.context-preview-loading')) {
+                        try {
+                            // 显示正在加载
+                            contentArea.innerHTML = `<div class="context-preview-loading">加载中...</div>`;
+                            
+                            // 请求文件预览
+                            const previewResponse = await fetch('/api/documents/preview', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ file_path: file.file_path })
+                            });
+                            
+                            const previewData = await previewResponse.json();
+                            
+                            if (previewData.status === 'success') {
+                                // 提取内容，根据类型处理
+
+                                if (previewData.type === 'pdf') {
+                                    // 处理PDF URL，确保正确的路径格式
+                                    previewData.url = previewData.url.replace(/\\/g, '/');
+                                    // 确保URL以斜杠开头（从网站根目录开始）
+                                    if (!previewData.url.startsWith('/')) {
+                                        previewData.url = '/' + previewData.url;
+                                    }
+                                    
+                                    // PDF文件嵌入式预览
+                                    contentArea.innerHTML = `
+                                        <div class="pdf-embed-container">
+                                            <embed src="${previewData.url}" type="application/pdf" width="100%" height="400px">
+                                            <noembed>
+                                                <p>
+                                                    您的浏览器不支持PDF嵌入式查看。
+                                                    <a href="${previewData.url}" target="_blank">点击此处下载PDF文件</a>
+                                                </p>
+                                            </noembed>
+                                        </div>
+                                    `;
+                                } else if (previewData.type === 'html' || previewData.type === 'html_table') {
+                                    contentArea.innerHTML = previewData.content;
+                                } else {
+                                    contentArea.textContent = previewData.content;
+                                }
+                            } else {
+                                contentArea.textContent = '无法加载文件内容';
+                            }
+                        } catch (error) {
+                            contentArea.textContent = '加载内容时出错';
+                            console.error('加载文件内容出错:', error);
+                        }
+                    }
+                });
+                
+                // 将标题栏和内容添加到项目中
+                contextItem.appendChild(titleBar);
+                contextItem.appendChild(contentArea);
+                
+                contextsList.appendChild(contextItem);
+            });
+            
+            container.appendChild(contextsList);
             
             // 添加到消息操作按钮之后
             const actionsDiv = messageDiv.querySelector('.message-actions');

@@ -121,6 +121,16 @@ async function loadDocuments() {
                     case 'csv':
                         iconClass = 'fa-file-csv';
                         break;
+                    case 'html':
+                        iconClass = 'fa-file-code';
+                        break;
+                    case 'json':
+                        iconClass = 'fa-file-json';
+                        break;
+                    case 'jsonl':
+                        iconClass = 'fa-file-jsonl';
+                        break;
+                    
                 }
                 
                 return `
@@ -173,6 +183,27 @@ async function loadDocuments() {
                                             <h3>文档预览：${filePath}</h3>
                                             <div class="preview-content">
                                                 ${previewData.content}
+                                            </div>
+                                        </div>
+                                    `;
+                                    break;
+                                case 'pdf':
+                                    // 将绝对路径转换为相对路径，并将反斜杠替换为正斜杠
+                                    previewData.url = previewData.url.replace(/\\/g, '/');
+                                    console.log(previewData.url);
+
+                                    previewContent = `
+                                        <div class="preview-modal-content pdf-preview">
+                                            <span class="preview-close">&times;</span>
+                                            <h3>PDF文档预览：${filePath}</h3>
+                                            <div class="preview-content">
+                                                <embed src="${previewData.url}" type="application/pdf" width="100%" height="600px">
+                                                <noembed>
+                                                    <p>
+                                                        您的浏览器不支持PDF嵌入式查看。
+                                                        <a href="${previewData.url}" target="_blank">点击此处下载PDF文件</a>
+                                                    </p>
+                                                </noembed>
                                             </div>
                                         </div>
                                     `;
