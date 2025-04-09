@@ -11,12 +11,3 @@ def raw_chat():
 def rag_chat():
     """RAG 对话页面"""
     return render_template('rag_chat.html')
-
-@chat.route('/agent')
-def agent_chat():
-    """Agent 对话页面"""
-    return render_template('agent_chat.html')
-
-@chat.route('/multimodal')
-def multimodal_chat():
-    return render_template('multimodal_chat.html')

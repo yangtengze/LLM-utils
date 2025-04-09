@@ -12,7 +12,7 @@ const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
 
 // 共用的添加消息函数
-function addMessage(content, type, streaming = false, callback = null) {
+function addMessage(content, type) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}-message`;
     
@@ -27,28 +27,30 @@ function addMessage(content, type, streaming = false, callback = null) {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
     
-    if (!streaming) {
-        contentDiv.innerHTML = content;
-    }
+    contentDiv.innerHTML = content;
     
     messageDiv.appendChild(iconDiv);
     messageDiv.appendChild(contentDiv);
     
     chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    
-    if (streaming && type === 'assistant') {
-        streamMessage(content, messageDiv, callback);
-    } else if (callback && typeof callback === 'function') {
-        setTimeout(callback, 0);
-    }
+    scrollToBottom();
     
     return messageDiv;
 }
 
-function formatMessage(content) {
-    content = content.replace(/<think>(.*?)<\/think>\s*(.*)/s, '<think>thinking:  $1</think><result>$2</result>')
-    content = content.replace(/(\\\(|\\\)|\[|\])/g, (m) => {
+// 滚动到底部函数
+function scrollToBottom() {
+    if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+}
+
+// 处理LaTeX公式的特殊字符
+function formatLatex(content) {
+    if (!content) return content;
+    
+    // 转义特殊字符以适应LaTeX渲染
+    return content.replace(/(\\\(|\\\)|\[|\])/g, (m) => {
         switch (m) {
             case '\\(': return '\\\\(';
             case '\\)': return '\\\\)';
@@ -57,97 +59,225 @@ function formatMessage(content) {
             default: return m;
         }
     });
-    return content;
 }
 
-// 共用的添加流式输出函数
-function streamMessage(content, messageDiv, callback = null) {
-    console.log(content);
-    const contentDiv = messageDiv.querySelector('.message-content');
-    content = formatMessage(content);
-    const chars = content.split('');
-
-    let index = 0;
-    let buffer = '';
-    
-    function appendNextChar() {
-        if (index < chars.length) {
-            if (chars[index] === '<') {
-                let tagContent = '<';
-                let j = index + 1;
-                while (j < chars.length && chars[j] !== '>') {
-                    tagContent += chars[j];
-                    j++;
-                }
-                tagContent += '>';
+// 使用Fetch API和ReadableStream从Ollama获取流式响应
+async function streamFromOllama(url, data, contentDiv, callback = null) {
+    try {
+        // 发送请求获取流式响应
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ...data,
+                stream: true
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // 获取响应流
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let thinkBuffer = '';
+        let resultBuffer = '';
+        let thinkDiv = null;
+        let resultDiv = null;
+        let isInThinkTag = false;
+        
+        // 读取流
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            // 解码二进制数据
+            const chunk = decoder.decode(value, { stream: true });
+            
+            // 处理数据块
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (!line.trim()) continue;
                 
-                // 检查是否是think或result标签
-                if (tagContent === '<think>' || tagContent === '<result>') {
-                    // 先渲染之前累积的buffer
-                    if (buffer) {
-                        contentDiv.innerHTML += marked.parse(buffer);
-                        MathJax.typesetPromise().catch(err => {
-                            console.log('公式渲染错误:', err);
-                        });
-                        buffer = '';
+                try {
+                    // 解析JSON数据
+                    const data = JSON.parse(line);
+                    if (data.message && data.message.content) {
+                        const newContent = data.message.content;
+                        buffer += newContent;
+                        
+                        // 检测并处理特殊标签
+                        processContent(newContent);
                     }
-                    
-                    // 创建容器
-                    const specialDiv = document.createElement('div');
-                    specialDiv.className = tagContent === '<think>' ? 'think' : 'result';
-                    contentDiv.appendChild(specialDiv);
-                    
-                    // 跳过开始标签
-                    index = j + 1;
-                    let specialBuffer = '';
-                    
-                    // 开始逐字输出内容
-                    function appendSpecialContent() {
-                        if (index < chars.length) {
-                            // 检查是否到达结束标签
-                            const endTag = tagContent === '<think>' ? '</think>' : '</result>';
-                            if (chars[index] === '<' && chars.slice(index, index + endTag.length).join('') === endTag) {
-                                // 渲染累积的特殊内容
-                                specialDiv.innerHTML = marked.parse(specialBuffer);
-                                MathJax.typesetPromise().catch(err => {
-                                    console.log('公式渲染错误:', err);
-                                });
-                                index += endTag.length; // 跳过结束标签
-                                appendNextChar(); // 继续处理后续内容
-                                return;
-                            }
-                            
-                            specialBuffer += chars[index];
-                            // 每积累一定数量的字符就渲染一次
-                            if (specialBuffer.includes('\n') || specialBuffer.length > 50) {
-                                specialDiv.innerHTML = marked.parse(specialBuffer);
-                                MathJax.typesetPromise().catch(err => {
-                                    console.log('公式渲染错误:', err);
-                                });
-                            }
-                            
-                            index++;
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                            setTimeout(appendSpecialContent, 20);
-                        }
-                    }
-                    
-                    appendSpecialContent();
-                } else {
-                    buffer += tagContent;
-                    index = j + 1;
-                    setTimeout(appendNextChar, 20);
+                } catch (e) {
+                    console.error('解析返回数据失败:', e, line);
+                    // 对于非JSON格式数据，直接作为文本追加
+                    buffer += line;
+                    processContent(line);
                 }
-            } 
-        } else {
-            // 当所有字符都处理完毕后，调用回调函数
-            if (callback && typeof callback === 'function') {
-                setTimeout(callback, 100); // 给最后的渲染一点时间
+            }
+            
+            // 滚动到底部
+            scrollToBottom();
+        }
+        
+        // 进行内容的最终处理
+        finalizeRendering();
+        
+        // 完成时调用回调函数
+        if (callback && typeof callback === 'function') {
+            setTimeout(callback, 100);
+        }
+        
+        // 处理接收到的内容块
+        function processContent(content) {
+            // 查找标签位置
+            const thinkStartPos = content.indexOf('<think>');
+            const thinkEndPos = content.indexOf('</think>');
+            
+            // 根据标签位置分情况处理
+            if (thinkStartPos !== -1 && thinkEndPos !== -1) {
+                // 同时包含开始和结束标签的情况
+                handleBeforeThink(content.substring(0, thinkStartPos));
+                handleThink(content.substring(thinkStartPos + 7, thinkEndPos));
+                handleAfterThink(content.substring(thinkEndPos + 8));
+                isInThinkTag = false;
+            } else if (thinkStartPos !== -1) {
+                // 只有开始标签
+                handleBeforeThink(content.substring(0, thinkStartPos));
+                handleThink(content.substring(thinkStartPos + 7));
+                isInThinkTag = true;
+            } else if (thinkEndPos !== -1) {
+                // 只有结束标签
+                if (isInThinkTag) {
+                    handleThink(content.substring(0, thinkEndPos));
+                    handleAfterThink(content.substring(thinkEndPos + 8));
+                    isInThinkTag = false;
+                } else {
+                    // 错误的结束标签，当作普通文本处理
+                    handleNormalContent(content);
+                }
+            } else {
+                // 没有特殊标签
+                if (isInThinkTag) {
+                    handleThink(content);
+                } else {
+                    handleNormalContent(content);
+                }
             }
         }
+        
+        // 处理 <think> 标签前的内容
+        function handleBeforeThink(text) {
+            if (!text) return;
+            
+            if (!thinkDiv && !resultDiv) {
+                // 如果还没有创建特殊区域，直接渲染到主容器
+                contentDiv.innerHTML = marked.parse(text);
+                if (window.MathJax) {
+                    MathJax.typesetPromise([contentDiv]).catch(err => console.log('公式渲染错误:', err));
+                }
+            }
+        }
+        
+        // 处理 <think> 标签内的内容
+        function handleThink(text) {
+            if (!thinkDiv) {
+                // 首次创建思考区域
+                thinkDiv = document.createElement('div');
+                thinkDiv.className = 'think';
+                contentDiv.appendChild(thinkDiv);
+                thinkBuffer = '';
+            }
+            
+            // 追加到思考缓冲区
+            thinkBuffer += text;
+            // 格式化LaTeX公式
+            const formattedContent = formatLatex(thinkBuffer);
+            thinkDiv.innerHTML = marked.parse(formattedContent);
+            if (window.MathJax) {
+                MathJax.typesetPromise([thinkDiv]).catch(err => console.log('公式渲染错误:', err));
+            }
+        }
+        
+        // 处理 </think> 标签后的内容
+        function handleAfterThink(text) {
+            if (!resultDiv) {
+                // 首次创建结果区域
+                resultDiv = document.createElement('div');
+                resultDiv.className = 'result';
+                contentDiv.appendChild(resultDiv);
+                resultBuffer = '';
+            }
+            
+            // 追加到结果缓冲区
+            resultBuffer += text;
+            // 格式化LaTeX公式
+            const formattedContent = formatLatex(resultBuffer);
+            resultDiv.innerHTML = marked.parse(formattedContent);
+            if (window.MathJax) {
+                MathJax.typesetPromise([resultDiv]).catch(err => console.log('公式渲染错误:', err));
+            }
+        }
+        
+        // 处理普通内容（无特殊标签）
+        function handleNormalContent(text) {
+            if (resultDiv) {
+                // 如果已经有结果区域，追加到结果区域
+                resultBuffer += text;
+                // 格式化LaTeX公式
+                const formattedContent = formatLatex(resultBuffer);
+                resultDiv.innerHTML = marked.parse(formattedContent);
+            } else {
+                // 否则追加到主容器
+                // 格式化LaTeX公式
+                const formattedContent = formatLatex(buffer);
+                contentDiv.innerHTML = marked.parse(formattedContent);
+            }
+            
+            if (window.MathJax) {
+                const targetElement = resultDiv || contentDiv;
+                MathJax.typesetPromise([targetElement]).catch(err => console.log('公式渲染错误:', err));
+            }
+        }
+        
+        // 最终渲染，确保样式和结构正确
+        function finalizeRendering() {
+            // 如果有未处理的思考内容，确保应用正确样式
+            if (thinkDiv && thinkDiv.parentNode === contentDiv) {
+                const formattedThink = formatLatex(thinkBuffer);
+                thinkDiv.innerHTML = marked.parse(formattedThink);
+                thinkDiv.className = 'think'; // 重新应用样式
+            }
+            
+            // 如果有未处理的结果内容，确保应用正确样式
+            if (resultDiv && resultDiv.parentNode === contentDiv) {
+                const formattedResult = formatLatex(resultBuffer);
+                resultDiv.innerHTML = marked.parse(formattedResult);
+                resultDiv.className = 'result'; // 重新应用样式
+            }
+            
+            // 如果没有特殊标签但有内容，确保渲染
+            if (!thinkDiv && !resultDiv && buffer) {
+                const formattedContent = formatLatex(buffer);
+                contentDiv.innerHTML = marked.parse(formattedContent);
+            }
+            
+            // 最终渲染数学公式
+            if (window.MathJax) {
+                MathJax.typesetPromise([contentDiv]).catch(err => console.log('最终公式渲染错误:', err));
+            }
+        }
+        
+    } catch (error) {
+        console.error('流式处理失败:', error);
+        contentDiv.innerHTML = `<div class="error">流式处理失败: ${error.message}</div>`;
+        throw error;
     }
-    
-    appendNextChar();
 }
 
 // 共用的加载动画
@@ -165,7 +295,7 @@ function addLoadingMessage() {
         </div>
     `;
     chatMessages.appendChild(loadingDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollToBottom();
     return loadingDiv;
 }
 
@@ -187,7 +317,6 @@ async function loadModelConfig() {
         document.getElementById('model-select').innerHTML = '<option value="">加载失败</option>';
     }
 }
-
 // 共用的切换模型
 function setupModelSwitching() {
     document.getElementById('model-select').addEventListener('change', async (e) => {
@@ -213,13 +342,11 @@ function setupModelSwitching() {
         }
     });
 }
-
 // 共用的自动调整输入框高度
 function autoResizeTextarea() {
     messageInput.style.height = 'auto';
     messageInput.style.height = messageInput.scrollHeight + 'px';
 }
-
 // 添加输入区域折叠功能
 function setupInputCollapse() {
     const chatInput = document.querySelector('.chat-input');
@@ -371,7 +498,7 @@ function loadChatHistory(chatType) {
             } else {
                 // 加载对话
                 const id = item.dataset.id;
-                console.log(history)
+                // console.log(history)
                 loadChat(chatType, id);
             }
         });
@@ -424,7 +551,7 @@ function loadChat(chatType, chatId) {
             item.classList.toggle('active', item.dataset.id === chatId);
         });
         
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
 }
 
@@ -486,16 +613,6 @@ function showWelcomeMessage(chatType) {
                 </div>
             `;
             break;
-        case 'agent':
-            welcomeContent = `
-                <div class="welcome-message">
-                    <i class="fas fa-robot"></i>
-                    <h3>欢迎使用 Agent Chat</h3>
-                    <p>这是一个增强型对话系统，可以使用各种工具来辅助回答。</p>
-                    <p>您可以开始输入任何问题...</p>
-                </div>
-            `;
-            break;
         default:
             welcomeContent = `
                 <div class="welcome-message">
@@ -509,12 +626,147 @@ function showWelcomeMessage(chatType) {
     chatMessages.innerHTML = welcomeContent;
 }
 
+// 统一的消息发送函数
+async function sendChatMessage({
+    message,                   // 用户消息内容
+    chatType = 'raw',          // 聊天类型：'raw' 或 'rag'
+    endpoint = 'http://localhost:11434/api/chat', // Ollama API 端点
+    contextEndpoint = null,    // 获取上下文的端点（用于RAG）
+    modelName = null,          // 模型名称
+    temperature = 0.7,         // 温度参数
+    systemPrompt = null,       // 系统提示（可选）
+    fallbackEndpoint = null    // 备选 API 端点
+}) {
+    if (!message || !message.trim()) return null;
+    
+    // 如果没有指定模型名称，从选择器获取
+    if (!modelName) {
+        modelName = document.getElementById('model-select')?.value || 'deepseek-r1:1.5b';
+    }
+
+    // 添加用户消息
+    addMessage(message, 'user');
+    
+    // 清空输入框
+    const messageInput = document.getElementById('message-input');
+    if (messageInput) {
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+    }
+
+    try {
+        // 显示加载动画
+        const loadingDiv = addLoadingMessage();
+        
+        // 准备 Ollama 消息格式
+        let ollamaData = {
+            model: modelName,
+            messages: [{ role: "user", content: message }]
+        };
+        
+        // 如果有温度参数，添加到请求
+        if (temperature !== null) {
+            ollamaData.temperature = temperature;
+        }
+        
+        // 如果是 RAG 模式且有上下文端点，获取上下文
+        if (chatType === 'rag' && contextEndpoint) {
+            try {
+                const contextResponse = await fetch(contextEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                
+                const contextData = await contextResponse.json();
+                if (contextData.status === 'success') {
+                    // 使用上下文数据作为系统提示
+                    systemPrompt = contextData.context;
+                } else {
+                    throw new Error(contextData.message || '获取上下文失败');
+                }
+            } catch (contextError) {
+                console.error('获取上下文失败:', contextError);
+                throw contextError;
+            }
+        }
+        
+        // 如果有系统提示，添加到消息列表开头
+        if (systemPrompt) {
+            ollamaData.messages.unshift({ role: "system", content: systemPrompt });
+        }
+        
+        // 移除加载动画
+        chatMessages.removeChild(loadingDiv);
+        
+        // 添加助手消息
+        const assistantMessageDiv = addMessage('', 'assistant');
+        const contentDiv = assistantMessageDiv.querySelector('.message-content');
+        
+        // 调用流式处理函数
+        await streamFromOllama(
+            endpoint,
+            ollamaData,
+            contentDiv,
+            () => {
+                // 完成后保存对话
+                saveChat(chatType, document.querySelectorAll('#chat-messages > div'));
+            }
+        );
+        
+        return contentDiv; // 返回内容元素，以便外部代码可以进一步操作
+        
+    } catch (error) {
+        console.error('发送消息失败:', error);
+        
+        // 移除之前的加载动画或错误消息（如果存在）
+        const lastMessage = chatMessages.lastChild;
+        if (lastMessage && (lastMessage.classList.contains('loading') || 
+            (lastMessage.classList.contains('assistant-message') && 
+             lastMessage.querySelector('.error')))) {
+            chatMessages.removeChild(lastMessage);
+        }
+        
+        // 显示错误消息
+        addMessage(`<div class="error">发送消息失败：${error.message}</div>`, 'assistant');
+        
+        // 如果有备选 API，尝试使用
+        if (fallbackEndpoint) {
+            try {
+                const fallbackResponse = await fetch(fallbackEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message,
+                        temperature: temperature,
+                        stream: true
+                    })
+                });
+                
+                const data = await fallbackResponse.json();
+                if (data.status === 'success') {
+                    // 移除错误消息
+                    chatMessages.removeChild(chatMessages.lastChild);
+                    // 添加正确的响应
+                    addMessage(data.response, 'assistant');
+                    saveChat(chatType, document.querySelectorAll('#chat-messages > div'));
+                    return true;
+                }
+            } catch (fallbackError) {
+                console.error('备选API也失败:', fallbackError);
+            }
+        }
+        
+        throw error; // 重新抛出错误，以便外部代码可以捕获
+    }
+}
+
 // 导出共用函数
 export {
-    formatMessage,
     addMessage,
     addLoadingMessage,
-    streamMessage,
+    streamFromOllama,
+    formatLatex,
     loadModelConfig,
     setupModelSwitching,
     autoResizeTextarea,
@@ -525,5 +777,7 @@ export {
     deleteChat,
     setupChatHistory,
     showWelcomeMessage,
+    sendChatMessage,
+    scrollToBottom,
     currentChatId
 }; 

@@ -1,7 +1,5 @@
 from flask import Blueprint, request, jsonify
-from utils.agent.base_agent import BaseAgent
 from utils.rag import Rag
-from utils.agent.tools import *
 from utils.load_config import configs
 from werkzeug.utils import secure_filename
 from utils.documents_preview import *
@@ -11,38 +9,9 @@ from utils.ocr_manager import get_ocr_engine
 
 # import utils.multimodal_utils as multimodal_utils
 api = Blueprint('api', __name__)
-# 初始化 Agent 和 RAG
-agent = BaseAgent()
 
 rag = Rag()
 rag.load_documents(rag.files)
-
-# 注册工具
-agent.register_tool(Tool(
-    name="get_local_ip",
-    description="获取本机的IP地址信息",
-    func=get_local_ip
-))
-
-# 注册带参数的工具
-agent.register_tool(Tool(
-    name="search_documents",
-    description="搜索文档库中的相关内容",
-    func=search_documents,
-    parameters={
-        "query": {
-            "description": "搜索查询文本",
-            "type": "string",
-            "required": True
-        },
-        "top_k": {
-            "description": "返回的最大结果数量",
-            "type": "integer",
-            "default": 3,
-            "required": False
-        }
-    }
-)) 
 
 
 @api.route('/config', methods=['GET'])
@@ -95,9 +64,6 @@ def raw_chat():
     temperature = data.get('temperature', 0.7)  # 获取温度参数
     
     try:
-        # 添加用户消息到历史
-        agent.add_to_history(message, 'user')
-        
         # 临时更新温度设置
         original_temp = rag.config['ollama']['temperature']
         rag.config['ollama']['temperature'] = temperature
@@ -107,10 +73,7 @@ def raw_chat():
         
         # 恢复原始温度设置
         rag.config['ollama']['temperature'] = original_temp
-        
-        # 添加助手回复到历史
-        agent.add_to_history(response, 'assistant')
-        
+
         return jsonify({
             'status': 'success',
             'response': response,
@@ -141,18 +104,43 @@ def rag_chat():
             'message': str(e)
         }), 500
 
-@api.route('/chat/agent', methods=['POST'])
-def agent_chat():
-    """Agent 对话接口"""
+@api.route('/chat/rag/related_context', methods=['POST'])
+def get_related_context():
+    """获取 RAG 相关文档内容接口"""
     data = request.get_json()
     message = data.get('message', '')
     
     try:
-        response = agent.run(message)
+        # 使用 RAG 系统检索相关文档，但不生成回复
+        context = rag.get_context(message)
+        
+        # 如果 get_context 方法不存在，可以编写一个通用实现
+        # 这里假设 rag 对象有一个检索上下文的方法
+        # 如果没有，需要直接访问 rag 内部方法获取上下文
+        
         return jsonify({
             'status': 'success',
-            'response': response,
-            'latex': re.findall(r'\\(?:begin|end)\{[a-z]*\}|\\.|[{}]|\$', response)  # 公式检测
+            'context': context
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@api.route('/chat/rag/prompt', methods=['POST'])
+def get_rag_prompt():
+    """获取完整的 RAG prompt"""
+    data = request.get_json()
+    message = data.get('message', '')
+    
+    try:
+        # 生成 RAG 提示
+        prompt = rag.generate_prompt(message)
+        
+        return jsonify({
+            'status': 'success',
+            'context': prompt
         })
     except Exception as e:
         return jsonify({
@@ -277,25 +265,6 @@ def upload_files():
             'status': 'error',
             'message': f'上传文件失败: {str(e)}'
         }), 500
-
-@api.route('/tools', methods=['GET'])
-def get_tools():
-    """获取可用工具列表"""
-    try:
-        tools = agent.get_available_tools()
-        # print(tools)
-        return jsonify(tools)
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-# @api.route('/api/multimodal', methods=['POST'])
-# def multimodal_api():
-#     data = request.json
-#     response = multimodal_utils.generate_response(data['message'])
-#     return jsonify({'response': response})
 
 @api.route('/ocr/process', methods=['POST'])
 def process_image():

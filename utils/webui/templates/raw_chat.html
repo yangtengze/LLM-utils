@@ -85,7 +85,7 @@
 {% block extra_js %}
 <script type="module">
 
-import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse, saveChat, loadChatHistory, loadChat, deleteChat, setupChatHistory, showWelcomeMessage } from '/static/js/chat-func.js';
+import { addMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse, saveChat, setupChatHistory, showWelcomeMessage, addLoadingMessage, sendChatMessage } from '/static/js/chat-func.js';
 
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
@@ -108,41 +108,16 @@ async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) return;
 
-    addMessage(message, 'user');
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-
-    const loadingMessage = addLoadingMessage();
-
     try {
-        const response = await fetch('/api/chat/raw', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                message,
-                temperature: currentTemperature
-            })
+        // 使用统一的发送函数
+        await sendChatMessage({
+            message: message,
+            chatType: 'raw',
+            temperature: currentTemperature,
+            fallbackEndpoint: '/api/chat/raw'
         });
-        
-        const data = await response.json();
-        loadingMessage.remove();
-        
-        if (data.status === 'success') {
-            // 使用流式输出，并在完成后保存对话
-            addMessage(data.response, 'assistant', true, () => {
-                console.log(document.querySelectorAll('#chat-messages > div'))
-                // 渲染完成后保存对话
-                saveChat('raw', document.querySelectorAll('#chat-messages > div'));
-            });
-        } else {
-            addMessage('发送消息失败：' + data.message, 'error');
-        }
     } catch (error) {
-        loadingMessage.remove();
-        console.error('发送消息失败:', error);
-        addMessage('发送消息失败，请重试', 'error');
+        console.error('消息发送完全失败:', error);
     }
 }
 

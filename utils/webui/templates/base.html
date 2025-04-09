@@ -11,6 +11,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 
+    <!-- Axios for streaming responses -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
     <!-- <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> -->
     <!-- 使用 unpkg CDN -->
     <script src="https://unpkg.com/marked@4.3.0/marked.min.js"></script>
@@ -53,10 +56,6 @@
             <a href="{{ url_for('chat.rag_chat') }}" class="nav-item">
                 <i class="fas fa-book"></i>
                 RAG Chat
-            </a>
-            <a href="{{ url_for('chat.agent_chat') }}" class="nav-item">
-                <i class="fas fa-tools"></i>
-                Agent Chat
             </a>
         </div>
     </nav>

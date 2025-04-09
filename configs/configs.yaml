@@ -30,7 +30,7 @@ rag:
     chunk_overlap: 200                # 分块重叠大小（字符数）
 
   embedding_model:                    # 嵌入模型配置
-    path: "C:/Users/yangt/Desktop/github/rag对话/bge-large-zh-v1.5"         # HuggingFace 模型名称
+    path: "D:/models/bge-large-zh-v1.5"         # HuggingFace 模型名称
     # path: "quentinz/bge-large-zh-v1.5"         # HuggingFace 模型名称
     device: ["cuda"]                  # 运行设备（cpu/cuda）
     normalize_embeddings: True        # 是否归一化嵌入向量 True/False
