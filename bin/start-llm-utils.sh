@@ -22,6 +22,9 @@ else
             echo "安装PyTorch失败，请检查网络连接或conda配置。"
             exit 1
         fi
+        echo "安装 ppstructure..."
+        pip install paddlepaddle-gpu -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
+        pip install paddleocr -i https://pypi.tuna.tsinghua.edu.cn/simple
         echo "使用pip安装其他依赖..."
         pip install -r ./requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
         if [ $? -ne 0 ]; then

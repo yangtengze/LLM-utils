@@ -1,6 +1,18 @@
-# LLM-Utils
+# [【A15】基于RAG和大模型的算术与数学问题解答【万维艾斯】](http://www.fwwb.org.cn/topic/show/27bf442b-f30a-436a-8895-964c8802f1ca)
 
-一个模块化的 LLM 工具集合，提供了文档处理、RAG、Agent 等功能。
+## 项目成员
+|  队伍名称 |
+|--------|
+|混分大队 |
+
+| 姓名  |  性别    |  队伍角色 |
+|--------|--------|-------------|
+| *宋锋* | 男  | *指导老师* |
+| 杨腾泽 | 男  | *队长* |
+| 董函铄 | 女  | 队员 |
+| 刘彩月 | 女  | 队员 |
+
+## 项目更新日志
 
 
 | 日期和时间       | 版本   | 更新内容                  |
@@ -10,6 +22,7 @@
 | 2025/2/27  18:41 | 0.1.2  | code 优化|
 | 2025/3/24  22:30 | 0.1.3  | rag file preview 功能|
 | 2025/3/27  22:30 | 0.1.4  | 历史对话信息功能|
+| 2025/4/10  22:28 | 0.1.5  | 代码可读性优化|
 
 
 **附上ollama快速下载 LLM-utils/download_model.ps1**
@@ -19,10 +32,15 @@
 ```
 ## 项目结构
 
-This is an utils based on LLMs such as RAG、Agent tools、WebUI etc. 
-
 ```dir 
 LLM-UTILS/
+├── Dockerfile
+├── dockerfile.backup
+├── download_model.ps1
+├── README.md
+├── requirements.txt
+├── run_webui.py
+├── .vscode/
 ├── bin/
 │   ├── start-llm-utils.bat
 │   ├── start-llm-utils.sh
@@ -31,61 +49,79 @@ LLM-UTILS/
 ├── configs/
 │   └── configs.yaml
 ├── data/
-│   ├── agent_state.json
 │   ├── documents/
-│   │   ├── llama2/
-│   │   │   ├──llama2.pdf
-│   │   ├── data.csv
-│   │   ├── test.txt
-│   │   ├── README.md
 │   │   ├── 1.docx
-│   │   └── tmp_store
+│   │   ├── 222.pdf
+│   │   ├── conda.txt
+│   │   ├── data.csv
+│   │   ├── data.txt
+│   │   ├── README.md
+│   │   ├── test.txt
+│   │   ├── tmp_store
+│   │   ├── competition_data/
+│   │   │   └── data.html
+│   │   └── llama2/
+│   │       └── llama2.pdf
 │   └── vec_db_store/
-│       ├── agent_state/
-│       │   └──agent_state.json
-│       ├── doc_vectors.npy
-│       └── metadata.json
-├── logs/
-│   └── log-20250218.log
-├── server/
 ├── tests/
 │   ├── import_yaml.py
 │   ├── test_agent.py
+│   ├── test_rag.py
 │   ├── test_raw.py
-│   └── loaders/
-│       ├── csv.py
-│       ├── pdf.py
-│       └── txt.py
-├── utils/
-│   ├── load_config.py
-│   ├── base_func/
-│   │   └── parse_response.py
-│   ├── agent/
-│   │   ├── base_agent.py
-│   │   └── tools.py
-│   ├── document_loader/
-│   │   ├── csvLoader.py
-│   │   ├── docxLoader.py
-│   │   ├── mdLoader.py
-│   │   ├── pdfLoader.py
-│   │   └── txtLoader.py
-│   ├── rag/
-│   │   └── rag.py
-│   └── webui/
-│       ├── app.py
-│       └── routes/
-│           ├── api_routes.py
-│           ├── chat_routes.py
-│           └── templates/
-│               ├── agent_chat.html
-│               ├── base.html
-│               ├── index.html
-│               ├── multimodal_chat.html
-│               ├── rag_chat.html
-│               └── raw_chat.html
-├── Dockerfile
-├── README.md
-└── requirements.txt
+│   ├── loaders/
+│   │   ├── csv.py
+│   │   ├── index.html
+│   │   ├── pdf.py
+│   │   └── txt.py
+│   └── test_files/
+│       ├── test.py
+│       └── ppstructure/
+│           ├── 1.png
+│           └── layout.jpg
+└── utils/
+    ├── load_config.py
+    ├── ocr_manager.py
+    ├── __init__.py
+    ├── base_func/
+    │   ├── call_model.py
+    │   └── parse_response.py
+    ├── documents_preview/
+    │   ├── preview_csv.py
+    │   ├── preview_docx.py
+    │   ├── preview_html.py
+    │   ├── preview_markdown.py
+    │   └── preview_pdf.py
+    ├── document_loader/
+    │   ├── csvLoader.py
+    │   ├── docxLoader.py
+    │   ├── htmlLoader.py
+    │   ├── mdLoader.py
+    │   ├── pdfLoader.py
+    │   └── txtLoader.py
+    ├── rag/
+    │   └── rag.py
+    └── webui/
+        ├── app.py
+        ├── routes/
+        │   ├── api_routes.py
+        │   └── chat_routes.py
+        ├── static/
+        │   ├── css/
+        │   │   └── style.css
+        │   ├── images/
+        │   │   ├── 1.jpg
+        │   │   ├── 2.jpg
+        │   │   ├── 3.jpg
+        │   │   └── 4.jpg
+        │   └── js/
+        │       ├── chat-func.js
+        │       ├── rag-chat.js
+        │       └── raw-chat.js
+        └── templates/
+            ├── base.html
+            ├── index.html
+            ├── rag_chat.html
+            └── raw_chat.html
 ```
 
 ## 功能特性
@@ -97,13 +133,7 @@ LLM-UTILS/
 - 增量更新支持
 - 向量数据持久化
 
-### 2. Agent 系统
-- 基础 Agent 框架
-  - 工具调用
-  - 对话历史记录
-  - LLM 集成
-
-### 3. Web 界面
+### 2. Web 界面
 - 多种聊天模式
   - 基础对话
   - RAG 增强对话
@@ -191,33 +221,14 @@ except Exception as e:
 ### 4.2 rag 对话
 ```python
 from utils.rag.rag import Rag
+from utils.base_func import call_language_model
 # 创建 Rag
 rag = Rag()
 rag.load_documents(rag.files)
 query = "你是谁啊？你叫什么？"
 try:
-    response = rag.generate_response(query)
-    print(response)
-except Exception as e:
-    error_msg = f"LLM调用出错: {str(e)}"
-    print(error_msg)
-```
-### 4.3 agent对话
-```python
-from utils.agent import BaseAgent
-from utils.agent.tools import *
-# 创建 Agent
-agent = BaseAgent()
-# 注册工具
-agent.register_tool(Tool(
-    name="get_local_ip",
-    description="获取本机的IP地址信息",
-    func=get_local_ip
-))
-query = "你好，请帮我查看本机IP地址"
-# 运行对话
-try:
-    response = agent.run(query)
+    system_prompt = rag.generate_prompt(query)
+    response = call_language_model(query, system_prompt)
     print(response)
 except Exception as e:
     error_msg = f"LLM调用出错: {str(e)}"
@@ -230,16 +241,6 @@ except Exception as e:
 1. 在 `utils/document_loader/` 下创建新的加载器类
 2. 实现必要的接口方法
 3. 在 `__init__.py` 中注册
-
-### 扩展 Agent 功能
-1. 继承 `BaseAgent` 类
-2. 自定义 prompt 模板
-3. 实现特定功能
-
-### 添加新工具
-1. 在 `utils/agent/tools.py` 中定义工具函数
-2. 使用 `Tool` 类封装
-3. 通过 `register_tool` 注册
 
 ## 注意事项
 
