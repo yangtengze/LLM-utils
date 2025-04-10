@@ -14,14 +14,35 @@
     <!-- Axios for streaming responses -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     
-    <!-- <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> -->
     <!-- 使用 unpkg CDN -->
     <script src="https://unpkg.com/marked@4.3.0/marked.min.js"></script>
+    <!-- docx-preview library 必要依赖 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- docx-preview library -->
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.min.js"></script>
+    <!-- 确保docx-preview正确加载 -->
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            // 检查docx-preview是否已经加载
+            if (typeof docx === 'undefined' && typeof window.docxPreview === 'undefined') {
+                console.warn('docx-preview库未检测到，尝试重新加载...');
+                // 动态加载docx-preview
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.min.js';
+                script.onload = () => {
+                    console.log('docx-preview库已成功加载');
+                };
+                script.onerror = () => {
+                    console.error('加载docx-preview库失败');
+                };
+                document.head.appendChild(script);
+            } else {
+                // console.log('docx-preview库已加载');
+            }
+        });
+    </script>
     
-        <!-- 或使用 cdnjs -->
-        <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script> -->
-    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"> -->
+    <!-- 或使用 cdnjs -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- MathJax配置 -->
     <script>
@@ -35,7 +56,6 @@
             }
         };
     </script>
-    <!-- <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script> -->
     <script id="MathJax-script" async
             src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
@@ -60,10 +80,33 @@
         </div>
     </nav>
 
+    <!-- 可折叠的历史记录侧边栏 -->
+    {% if 'chat.' in request.endpoint %}
+    <div id="history-sidebar" class="sidebar-container">
+        <div class="sidebar-content">
+            <div class="history-section">
+                <div class="history-header">
+                    <h3>历史对话</h3>
+                    <button id="new-chat-btn" class="new-chat-btn">
+                        <i class="fas fa-plus"></i> 新对话
+                    </button>
+                </div>
+                <div id="global-chat-history-list" class="chat-history-list">
+                    <!-- 历史对话列表将通过JavaScript动态加载 -->
+                </div>
+            </div>
+        </div>
+        <div class="sidebar-toggle" id="sidebar-toggle" title="历史对话框">
+            <i class="fas fa-chevron-right"></i>
+        </div>
+    </div>
+    {% endif %}
+
     <main class="main-container">
         {% block content %}{% endblock %}
     </main>
 
+    {% if not request.endpoint or not 'chat.' in request.endpoint %}
     <footer class="footer">
         <div class="footer-content">
             <span class="author">Created by <a href="https://github.com/yangtengze" target="_blank">yangtengze</a></span>
@@ -72,6 +115,7 @@
             </a>
         </div>
     </footer>
+    {% endif %}
 
     <!-- 使用 defer 延迟加载非关键JS -->
     <script src="{{ url_for('static', filename='js/chat-func.js') }}" type="module" defer></script>

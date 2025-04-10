@@ -7,6 +7,109 @@ marked.setOptions({
     breaks: true
 });
 
+// 设置侧边栏功能
+function setupSidebar() {
+    const sidebar = document.getElementById('history-sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    
+    if (!sidebar || !toggle) return;
+    
+    // 侧边栏切换
+    toggle.addEventListener('click', () => {
+        sidebar.classList.toggle('expanded');
+    });
+    
+    // 加载全局历史记录
+    loadGlobalChatHistory();
+    
+    // 为侧边栏中的新建按钮添加事件
+    const newChatBtn = sidebar.querySelector('#new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+            // 获取当前页面类型
+            const currentPage = window.location.pathname.includes('raw_chat') ? 'raw' : 'rag';
+            // 重置当前对话ID
+            currentChatId = null;
+            // 清空对话
+            clearChat(currentPage);
+            // 清除活动状态
+            document.querySelectorAll('.chat-history-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        });
+    }
+}
+
+// 加载全局历史记录
+function loadGlobalChatHistory() {
+    const historyList = document.getElementById('global-chat-history-list');
+    if (!historyList) return;
+    
+    // 获取所有类型的历史记录
+    const rawHistory = JSON.parse(localStorage.getItem('raw_history') || '[]');
+    const ragHistory = JSON.parse(localStorage.getItem('rag_history') || '[]');
+    
+    // 合并历史记录并按日期排序
+    const allHistory = [...rawHistory, ...ragHistory].sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+    );
+    
+    historyList.innerHTML = allHistory.length ? 
+        allHistory.map(chat => `
+            <div class="chat-history-item" data-id="${chat.id}" data-type="${chat.id.startsWith('raw') ? 'raw' : 'rag'}">
+                <i class="fas ${chat.id.startsWith('raw') ? 'fa-comments' : 'fa-book'}"></i>
+                <div class="chat-history-title">${chat.title}</div>
+                <div class="chat-history-date">${new Date(chat.date).toLocaleDateString()}</div>
+                <div class="chat-history-delete" data-id="${chat.id}" data-type="${chat.id.startsWith('raw') ? 'raw' : 'rag'}">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+        `).join('') : 
+        '<div class="empty-history">无历史对话</div>';
+        
+    // 添加事件监听
+    document.querySelectorAll('#global-chat-history-list .chat-history-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            if (e.target.closest('.chat-history-delete')) {
+                // 删除对话
+                const id = e.target.closest('.chat-history-delete').dataset.id;
+                const type = e.target.closest('.chat-history-delete').dataset.type;
+                deleteChat(type, id);
+                e.stopPropagation();
+            } else {
+                // 获取类型和ID
+                const id = item.dataset.id;
+                const type = item.dataset.type;
+                // 判断是否需要切换页面
+                const currentPage = window.location.pathname.includes('raw') ? 'raw' : 'rag';
+                if (type !== currentPage) {
+                    // 需要跳转页面
+                    localStorage.setItem('pending_chat_id', id);
+                    localStorage.setItem('pending_chat_type', type);
+                    // 跳转到对应页面
+                    window.location.href = type === 'raw' ? '/chat/raw' : '/chat/rag';
+                } else {
+                    // 同一页面，直接加载
+                    loadChat(type, id);
+                }
+            }
+        });
+    });
+    
+    // 检查是否有等待加载的对话
+    const pendingId = localStorage.getItem('pending_chat_id');
+    const pendingType = localStorage.getItem('pending_chat_type');
+    
+    if (pendingId && pendingType) {
+        // 清除等待标记
+        localStorage.removeItem('pending_chat_id');
+        localStorage.removeItem('pending_chat_type');
+        
+        // 加载对话
+        loadChat(pendingType, pendingId);
+    }
+}
+
 // 共用的标签变量
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -447,6 +550,7 @@ function setupInputCollapse() {
     
     const chatInput = document.querySelector('.chat-input');
     const chatMessages = document.getElementById('chat-messages');
+    const chatHeader = document.querySelector('.chat-header'); // 添加chat-header元素
     
     if (!chatInput || !chatMessages) {
         return;
@@ -461,7 +565,7 @@ function setupInputCollapse() {
     // 创建折叠按钮
     const collapseBtn = document.createElement('button');
     collapseBtn.className = 'input-collapse-btn';
-    collapseBtn.innerHTML = '<i class="fas fa-chevron-down">折叠输入框</i>';
+    collapseBtn.innerHTML = '<i class="fas fa-chevron-down">折叠界面</i>';
     chatInput.parentElement.insertBefore(collapseBtn, chatInput);
     
     // 记录输入区域原始高度
@@ -471,18 +575,23 @@ function setupInputCollapse() {
     function toggleCollapse() {
         const isCollapsed = chatInput.classList.toggle('collapsed');
         
+        // 同时切换header的折叠状态
+        if (chatHeader) {
+            chatHeader.classList.toggle('collapsed', isCollapsed);
+        }
+        
         // 调整消息区域高度
         if (isCollapsed) {
             chatMessages.style.height = `auto`;
             chatInput.style.display = 'none';
-            collapseBtn.innerHTML = '<i class="fas fa-chevron-up">展开输入框</i>';
+            collapseBtn.innerHTML = '<i class="fas fa-chevron-up">展开界面</i>';
 
         } else {
             // 重新计算输入区域高度
             chatInput.style.height = 'auto';
             inputHeight = chatInput.offsetHeight;
             // chatMessages.style.height = `calc(100% - ${inputHeight}px)`;
-            collapseBtn.innerHTML = '<i class="fas fa-chevron-down">折叠输入框</i>';
+            collapseBtn.innerHTML = '<i class="fas fa-chevron-down">折叠界面</i>';
             chatMessages.style.height = `auto`;
             chatInput.style.display = 'block';
         }
@@ -551,7 +660,7 @@ function saveChat(chatType, messages) {
             };
         } else {
             // 如果找不到现有对话，创建新对话
-            currentChatId = Date.now().toString();
+            currentChatId = `${chatType}_${Date.now()}`;
             history.push({
                 id: currentChatId,
                 title,
@@ -561,7 +670,7 @@ function saveChat(chatType, messages) {
         }
     } else {
         // 创建新对话
-        currentChatId = Date.now().toString();
+        currentChatId = `${chatType}_${Date.now()}`;
         history.push({
             id: currentChatId,
             title,
@@ -573,6 +682,8 @@ function saveChat(chatType, messages) {
     localStorage.setItem(`${chatType}_history`, JSON.stringify(history));
     // 更新历史列表
     loadChatHistory(chatType);
+    // 更新全局历史列表
+    loadGlobalChatHistory();
     
     return currentChatId;
 }
@@ -728,7 +839,7 @@ function setupChatHistory(chatType) {
                 currentChatId = null;
                 
                 // 显示欢迎信息
-                showWelcomeMessage(chatType);
+                clearChat(chatType);
                 
                 // 清除活动状态
                 document.querySelectorAll('.chat-history-item').forEach(item => {
@@ -1083,6 +1194,17 @@ async function fetchReferenceFiles(question, messageDiv) {
                                             </div>
                                         `;
                                         break;
+                                    case 'docx':
+                                        previewContent = `
+                                            <div class="preview-modal-content docx-preview">
+                                                <span class="preview-close">&times;</span>
+                                                <h3>Word文档预览：${file.file_path}</h3>
+                                                <div class="preview-content">
+                                                    <div id="docx-container-${new Date().getTime()}" class="docx-container" style="width: 100%; height: 600px; border: 1px solid #ddd; overflow: auto;"></div>
+                                                </div>
+                                            </div>
+                                        `;
+                                        break;
                                     case 'pdf':
                                         // 将绝对路径转换为相对路径，并将反斜杠替换为正斜杠
                                         previewData.url = previewData.url.replace(/\\/g, '/');
@@ -1115,6 +1237,91 @@ async function fetchReferenceFiles(question, messageDiv) {
                                 previewModal.innerHTML = previewContent;
                                 
                                 document.body.appendChild(previewModal);
+                                
+                                // 处理DOCX文件的渲染
+                                if (previewData.type === 'docx' && previewData.data) {
+                                    try {
+                                        // 将base64数据转换为ArrayBuffer
+                                        const binaryString = atob(previewData.data);
+                                        const bytes = new Uint8Array(binaryString.length);
+                                        for (let i = 0; i < binaryString.length; i++) {
+                                            bytes[i] = binaryString.charCodeAt(i);
+                                        }
+                                        const arrayBuffer = bytes.buffer;
+                                        
+                                        // 使用docx-preview库渲染文档
+                                        const container = previewModal.querySelector('.docx-container');
+                                        if (!container) {
+                                            console.error('找不到DOCX容器元素');
+                                            return;
+                                        }
+                                        
+                                        // 检查docxPreview是否可用
+                                        if (typeof docx !== 'undefined' && docx.renderAsync) {
+                                            // 使用全局docx对象
+                                            docx.renderAsync(arrayBuffer, container, null, {
+                                                className: 'docx-rendered',
+                                                inWrapper: true,
+                                                ignoreWidth: false,
+                                                ignoreHeight: false,
+                                                ignoreFonts: false,
+                                                breakPages: true,
+                                                ignoreLastRenderedPageBreak: true,
+                                                renderHeaders: true,
+                                                renderFooters: true,
+                                                renderFootnotes: true,
+                                                renderEndnotes: true
+                                            }).then(() => {
+                                                console.log('文档渲染成功');
+                                            }).catch(error => {
+                                                console.error('文档渲染失败:', error);
+                                                container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
+                                            });
+                                        } else if (typeof window.docxPreview !== 'undefined') {
+                                            // 尝试使用 docxPreview 对象
+                                            window.docxPreview.renderAsync(arrayBuffer, container, null, {
+                                                className: 'docx-rendered',
+                                                inWrapper: true,
+                                                ignoreWidth: false,
+                                                ignoreHeight: false,
+                                                ignoreFonts: false,
+                                                breakPages: true,
+                                                ignoreLastRenderedPageBreak: true,
+                                                renderHeaders: true,
+                                                renderFooters: true,
+                                                renderFootnotes: true,
+                                                renderEndnotes: true
+                                            }).then(() => {
+                                                console.log('文档渲染成功');
+                                            }).catch(error => {
+                                                console.error('文档渲染失败:', error);
+                                                container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
+                                            });
+                                        } else {
+                                            // 尝试查找全局暴露的DocxJS对象
+                                            const DocxJS = window.DocxJS || window.docxjs || window.docxJS;
+                                            if (DocxJS) {
+                                                try {
+                                                    const renderer = new DocxJS.DocxRenderer();
+                                                    renderer.render(arrayBuffer, container);
+                                                    console.log('文档渲染成功');
+                                                } catch (error) {
+                                                    console.error('文档渲染失败:', error);
+                                                    container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
+                                                }
+                                            } else {
+                                                console.error('找不到docx-preview库');
+                                                container.innerHTML = `<div class="error-message">找不到docx-preview库，无法渲染文档</div>`;
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.error('处理DOCX文件失败:', error);
+                                        const container = previewModal.querySelector('.docx-container');
+                                        if (container) {
+                                            container.innerHTML = `<div class="error-message">处理DOCX文件失败: ${error.message}</div>`;
+                                        }
+                                    }
+                                }
                                 
                                 // 关闭模态框
                                 previewModal.querySelector('.preview-close').addEventListener('click', () => {
@@ -1361,6 +1568,92 @@ async function fetchRelatedContexts(question, messageDiv) {
                                     `;
                                 } else if (previewData.type === 'html' || previewData.type === 'html_table') {
                                     contentArea.innerHTML = previewData.content;
+                                } else if (previewData.type === 'docx' && previewData.data) {
+                                    // 创建DOCX预览容器
+                                    const docxContainerId = `docx-container-${index}-${new Date().getTime()}`;
+                                    contentArea.innerHTML = `
+                                        <div id="${docxContainerId}" style="width: 100%; height: 400px; border: 1px solid #ddd; overflow: auto;"></div>
+                                    `;
+                                    
+                                    try {
+                                        // 将base64数据转换为ArrayBuffer
+                                        const binaryString = atob(previewData.data);
+                                        const bytes = new Uint8Array(binaryString.length);
+                                        for (let i = 0; i < binaryString.length; i++) {
+                                            bytes[i] = binaryString.charCodeAt(i);
+                                        }
+                                        const arrayBuffer = bytes.buffer;
+                                        
+                                        // 使用docx-preview库渲染文档
+                                        const container = document.getElementById(docxContainerId);
+                                        if (!container) {
+                                            console.error('找不到DOCX容器元素');
+                                            return;
+                                        }
+                                        
+                                        // 检查docxPreview是否可用
+                                        if (typeof docx !== 'undefined' && docx.renderAsync) {
+                                            // 使用全局docx对象
+                                            docx.renderAsync(arrayBuffer, container, null, {
+                                                className: 'docx-rendered',
+                                                inWrapper: true,
+                                                ignoreWidth: false,
+                                                ignoreHeight: false,
+                                                ignoreFonts: false,
+                                                breakPages: true,
+                                                ignoreLastRenderedPageBreak: true,
+                                                renderHeaders: true,
+                                                renderFooters: true,
+                                                renderFootnotes: true,
+                                                renderEndnotes: true
+                                            }).then(() => {
+                                                console.log('文档渲染成功');
+                                            }).catch(error => {
+                                                console.error('文档渲染失败:', error);
+                                                container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
+                                            });
+                                        } else if (typeof window.docxPreview !== 'undefined') {
+                                            // 尝试使用 docxPreview 对象
+                                            window.docxPreview.renderAsync(arrayBuffer, container, null, {
+                                                className: 'docx-rendered',
+                                                inWrapper: true,
+                                                ignoreWidth: false,
+                                                ignoreHeight: false,
+                                                ignoreFonts: false,
+                                                breakPages: true,
+                                                ignoreLastRenderedPageBreak: true,
+                                                renderHeaders: true,
+                                                renderFooters: true,
+                                                renderFootnotes: true,
+                                                renderEndnotes: true
+                                            }).then(() => {
+                                                console.log('文档渲染成功');
+                                            }).catch(error => {
+                                                console.error('文档渲染失败:', error);
+                                                container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
+                                            });
+                                        } else {
+                                            // 尝试查找全局暴露的DocxJS对象
+                                            const DocxJS = window.DocxJS || window.docxjs || window.docxJS;
+                                            if (DocxJS) {
+                                                try {
+                                                    const renderer = new DocxJS.DocxRenderer();
+                                                    renderer.render(arrayBuffer, container);
+                                                    console.log('文档渲染成功');
+                                                } catch (error) {
+                                                    console.error('文档渲染失败:', error);
+                                                    container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
+                                                }
+                                            } else {
+                                                console.error('找不到docx-preview库');
+                                                container.innerHTML = `<div class="error-message">找不到docx-preview库，无法渲染文档</div>`;
+                                            }
+                                        }
+                                    } catch (error) {
+                                        console.error('处理DOCX文件失败:', error);
+                                        document.getElementById(docxContainerId).innerHTML = 
+                                            `<div class="error-message">处理DOCX文件失败: ${error.message}</div>`;
+                                    }
                                 } else {
                                     contentArea.textContent = previewData.content;
                                 }
@@ -1408,7 +1701,10 @@ async function fetchRelatedContexts(question, messageDiv) {
         console.error('获取相关上下文出错:', error);
     }
 }
-
+// 清空对话
+function clearChat(pagename) {
+    showWelcomeMessage(pagename);
+}
 // 导出共用函数
 export {
     addMessage,
@@ -1430,5 +1726,8 @@ export {
     fetchReferenceFiles,
     fetchRelatedQuestions,
     fetchRelatedContexts,
-    currentChatId
+    clearChat,
+    currentChatId,
+    setupSidebar,
+    loadGlobalChatHistory
 }; 

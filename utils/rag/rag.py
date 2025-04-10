@@ -1,4 +1,4 @@
-from utils.document_loader import CSVLoader, MDLoader, PDFLoader, TXTLoader, DocxLoader
+from utils.document_loader import CSVLoader, MDLoader, PDFLoader, TXTLoader, DocxLoader, HTMLLoader
 from utils.load_config import configs
 from utils.base_func import parse_response
 from typing import List, Dict
@@ -163,6 +163,8 @@ class Rag:
                             loader = MDLoader()
                         elif file_path.endswith('.pdf'):
                             loader = PDFLoader()
+                        elif file_path.endswith('.html') or file_path.endswith('.htm'):
+                            loader = HTMLLoader()
                         elif (file_path.endswith('.txt') or (Path(file_path).suffix == '' and Path(file_path).is_file())):
                             loader = TXTLoader()
                         else:

@@ -5,17 +5,6 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
-        <div class="history-section">
-            <div class="history-header">
-                <h3>历史对话</h3>
-                <button id="new-chat-btn" class="new-chat-btn">
-                    <i class="fas fa-plus"></i> 新对话
-                </button>
-            </div>
-            <div id="chat-history-list" class="chat-history-list">
-                <!-- 历史对话列表将通过JavaScript动态加载 -->
-            </div>
-        </div>
         
         <div class="settings-section">
             <h3>对话设置</h3>
@@ -83,65 +72,7 @@
 </div>
 
 {% block extra_js %}
-<script type="module">
+<script type="module" src="{{ url_for('static', filename='js/raw-chat.js') }}"></script>
 
-import { addMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse, saveChat, setupChatHistory, showWelcomeMessage, addLoadingMessage, sendChatMessage } from '/static/js/chat-func.js';
-
-const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
-const chatMessages = document.getElementById('chat-messages');
-const clearButton = document.getElementById('clear-button');
-
-// 温度滑块
-const temperatureSlider = document.getElementById('temperature-slider');
-const temperatureValue = document.getElementById('temperature-value');
-let currentTemperature = 0.7;
-
-// 更新温度值显示
-temperatureSlider.addEventListener('input', (e) => {
-    currentTemperature = parseFloat(e.target.value);
-    temperatureValue.textContent = currentTemperature.toFixed(1);
-});
-
-// 发送消息函数
-async function sendMessage() {
-    const message = messageInput.value.trim();
-    if (!message) return;
-
-    try {
-        // 使用统一的发送函数
-        await sendChatMessage({
-            message: message,
-            chatType: 'raw',
-            temperature: currentTemperature,
-            fallbackEndpoint: '/api/chat_completions'
-        });
-    } catch (error) {
-        console.error('消息发送完全失败:', error);
-    }
-}
-
-// 清空对话
-function clearChat() {
-    showWelcomeMessage('raw');
-}
-
-// 事件监听
-sendButton.addEventListener('click', sendMessage);
-clearButton.addEventListener('click', clearChat);
-messageInput.addEventListener('input', autoResizeTextarea);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-
-// 初始化
-loadModelConfig();
-setupModelSwitching();
-setupInputCollapse();
-setupChatHistory('raw');
-</script>
 {% endblock %}
 {% endblock %}

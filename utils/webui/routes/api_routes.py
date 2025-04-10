@@ -254,7 +254,7 @@ def preview_document():
     file_path = data.get('file_path')
     
     try:
-        allowed_extensions = ['.txt', '.md', '.csv', '.log', '.pdf', '.docx', '']
+        allowed_extensions = ['.txt', '.md', '.csv', '.log', '.pdf', '.docx', '.html', '']
         
         if not file_path or not any(file_path.endswith(ext) for ext in allowed_extensions):
             return jsonify({
@@ -264,23 +264,12 @@ def preview_document():
         
         file_ext = os.path.splitext(file_path)[1].lower()
         
-        # 对PDF文件进行特殊处理，返回文件URL而不是内容
-        if file_ext == '.pdf':
-            # 构建相对URL路径，用于前端直接嵌入查看
-            relative_url = f"/{file_path}"
-            
-            return jsonify({
-                'status': 'success',
-                'file_path': file_path,
-                'type': 'pdf',
-                'url': relative_url
-            })
-        
         preview_func_map = {
             '.csv': preview_csv,
             '.docx': preview_docx,
-            '.pdf': preview_pdf,
             '.md': preview_markdown,
+            '.html': preview_html,
+            '.pdf': preview_pdf,
             '.txt': lambda path: {
                 'type': 'text', 
                 'content': open(path, 'r', encoding='utf-8').read()
