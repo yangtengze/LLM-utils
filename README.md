@@ -36,94 +36,124 @@
 
 ```dir 
 LLM-UTILS/
-├── Dockerfile
-├── dockerfile.backup
-├── download_model.ps1
-├── README.md
-├── requirements.txt
-├── run_webui.py
-├── .vscode/
-├── bin/
-│   ├── start-llm-utils.bat
-│   ├── start-llm-utils.sh
-│   ├── stop-llm-utils.bat
-│   └── stop-llm-utils.sh
-├── configs/
-│   └── configs.yaml
-├── data/
-│   ├── documents/
-│   │   ├── 1.docx
-│   │   ├── 222.pdf
-│   │   ├── conda.txt
-│   │   ├── data.csv
-│   │   ├── data.txt
-│   │   ├── README.md
-│   │   ├── test.txt
-│   │   ├── tmp_store
-│   │   ├── competition_data/
-│   │   │   └── data.html
-│   │   └── llama2/
-│   │       └── llama2.pdf
-│   └── vec_db_store/
-├── tests/
-│   ├── import_yaml.py
-│   ├── test_agent.py
-│   ├── test_rag.py
-│   ├── test_raw.py
-│   ├── loaders/
-│   │   ├── csv.py
-│   │   ├── index.html
-│   │   ├── pdf.py
-│   │   └── txt.py
-│   └── test_files/
-│       ├── test.py
-│       └── ppstructure/
-│           ├── 1.png
-│           └── layout.jpg
-└── utils/
-    ├── load_config.py
-    ├── ocr_manager.py
-    ├── __init__.py
-    ├── base_func/
-    │   ├── call_model.py
-    │   └── parse_response.py
-    ├── documents_preview/
-    │   ├── preview_csv.py
-    │   ├── preview_docx.py
-    │   ├── preview_html.py
-    │   ├── preview_markdown.py
-    │   └── preview_pdf.py
-    ├── document_loader/
-    │   ├── csvLoader.py
-    │   ├── docxLoader.py
-    │   ├── htmlLoader.py
-    │   ├── mdLoader.py
-    │   ├── pdfLoader.py
-    │   └── txtLoader.py
-    ├── rag/
-    │   └── rag.py
-    └── webui/
-        ├── app.py
-        ├── routes/
-        │   ├── api_routes.py
-        │   └── chat_routes.py
-        ├── static/
-        │   ├── css/
-        │   │   └── style.css
-        │   ├── images/
-        │   │   ├── 1.jpg
-        │   │   ├── 2.jpg
-        │   │   ├── 3.jpg
-        │   │   └── 4.jpg
-        │   └── js/
-        │       ├── chat-func.js
-        │       ├── rag-chat.js
-        │       └── raw-chat.js
-        └── templates/
-            ├── base.html
-            ├── index.html
-            ├── rag_chat.html
-            └── raw_chat.html
+│  clear_pycache.ps1
+│  Dockerfile
+│  dockerfile.backup
+│  download_model.ps1
+│  README.md
+│  requirements.txt
+│  run_webui.py
+│  
+├─.vscode
+├─bin
+│      start-llm-utils.bat
+│      start-llm-utils.sh
+│      stop-llm-utils.bat
+│      stop-llm-utils.sh
+│
+├─configs
+│      configs.yaml
+│
+├─data
+│  ├─documents
+│  │  │  1.docx
+│  │  │  222.pdf
+│  │  │  conda.txt
+│  │  │  data.csv
+│  │  │  data.txt
+│  │  │  README.md
+│  │  │  test.txt
+│  │  │  tmp_store
+│  │  │
+│  │  ├─competition_data
+│  │  │      data.html
+│  │  │
+│  │  └─llama2
+│  │          llama2.pdf
+│  │
+│  └─vec_db_store
+├─temp
+├─tests
+│  │  import_yaml.py
+│  │  test_agent.py
+│  │  test_rag.py
+│  │  test_raw.py
+│  │
+│  ├─loaders
+│  │      csv.py
+│  │      index.html
+│  │      pdf.py
+│  │      txt.py
+│  │
+│  └─test_files
+│      │  test.py
+│      │
+│      └─ppstructure
+│              1.png
+│              layout.jpg
+│
+└─utils
+    │  load_config.py
+    │  ocr_manager.py
+    │  __init__.py
+    │
+    ├─base_func
+    │      call_model.py
+    │      parse_response.py
+    │      __init__.py
+    │
+    ├─documents_preview
+    │      preview_csv.py
+    │      preview_docx.py
+    │      preview_html.py
+    │      preview_markdown.py
+    │      preview_pdf.py
+    │      __init__.py
+    │
+    ├─document_loader
+    │      csvLoader.py
+    │      docxLoader.py
+    │      htmlLoader.py
+    │      mdLoader.py
+    │      pdfLoader.py
+    │      txtLoader.py
+    │      __init__.py
+    │
+    ├─rag
+    │      rag.py
+    │      __init__.py
+    │
+    └─webui
+        │  app.py
+        │
+        ├─routes
+        │      api_routes.py
+        │      chat_routes.py
+        │      __init__.py
+        │
+        ├─static
+        │  ├─css
+        │  │      style.css
+        │  │
+        │  ├─images
+        │  │      1.jpg
+        │  │      2.jpg
+        │  │      3.jpg
+        │  │      4.jpg
+        │  │
+        │  └─js
+        │          chat-func.js
+        │          chunks-manager.js
+        │          rag-chat.js
+        │          raw-chat.js
+        │
+        └─templates
+                base.html
+                chunks_manager.html
+                index.html
+                rag_chat.html
+                raw_chat.html
+
 ```
 
 ## 功能特性
