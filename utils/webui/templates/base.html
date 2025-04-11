@@ -110,7 +110,8 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% if not request.endpoint or not 'chat.' or not 'chunks_manager' in request.endpoint %}
+    {% set blocked_pages = ['chat.rag_chat', 'chat.raw_chat', 'chunks_manager'] %}
+    {% if not request.endpoint or request.endpoint not in blocked_pages %}
     <footer class="footer">
         <div class="footer-content">
             <span class="author">Created by <a href="https://github.com/yangtengze" target="_blank">yangtengze</a></span>

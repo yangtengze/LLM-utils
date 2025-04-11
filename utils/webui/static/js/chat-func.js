@@ -551,6 +551,7 @@ function setupInputCollapse() {
     const chatInput = document.querySelector('.chat-input');
     const chatMessages = document.getElementById('chat-messages');
     const chatHeader = document.querySelector('.chat-header'); // 添加chat-header元素
+    const headerNewChatBtn = document.getElementById('header-new-chat-btn'); // 获取头部新对话按钮
     
     if (!chatInput || !chatMessages) {
         return;
@@ -610,7 +611,7 @@ function setupInputCollapse() {
 // 修改历史对话处理函数
 let currentChatId = null; // 添加全局变量记录当前对话ID
 
-function saveChat(chatType, messages) {
+function saveChat(chatType, messages, titlePrompt = null) {
     // 如果没有实质性消息则不保存
     if (messages.length <= 0 || 
         (messages.length === 1 && messages[0].classList.contains('welcome-message'))) {
@@ -619,11 +620,39 @@ function saveChat(chatType, messages) {
     
     // 获取当前对话的第一条消息作为标题
     let title = "新对话";
-    for (const msg of messages) {
-        if (msg.classList.contains('user-message')) {
-            const content = msg.querySelector('.message-content').textContent.trim();
-            title = content.length > 30 ? content.substring(0, 30) + '...' : content;
-            break;
+    
+    // 如果提供了标题提示文本，优先使用它
+    if (titlePrompt) {
+        // 从OCR提示中提取一个更合适的标题
+        const titleMatch = titlePrompt.match(/用户提问: (.+?)$/m);
+        if (titleMatch && titleMatch[1]) {
+            title = titleMatch[1].trim();
+        } else {
+            // 如果没有找到用户提问部分，使用前30个字符
+            title = titlePrompt.split('\n')[0].trim();
+        }
+        title = title.length > 30 ? title.substring(0, 30) + '...' : title;
+    } else {
+        // 常规方式获取标题：从第一条用户消息
+        for (const msg of messages) {
+            if (msg.classList.contains('user-message')) {
+                // 检查这条消息是否有存储的实际提示（用于图片消息）
+                if (msg.dataset.actualPrompt) {
+                    const titleMatch = msg.dataset.actualPrompt.match(/用户提问: (.+?)$/m);
+                    if (titleMatch && titleMatch[1]) {
+                        title = titleMatch[1].trim();
+                    } else {
+                        // 使用第一行作为标题
+                        title = msg.dataset.actualPrompt.split('\n')[0].trim();
+                    }
+                } else {
+                    // 常规文本消息
+                    const content = msg.querySelector('.message-content').textContent.trim();
+                    title = content;
+                }
+                title = title.length > 30 ? title.substring(0, 30) + '...' : title;
+                break;
+            }
         }
     }
     
@@ -636,11 +665,17 @@ function saveChat(chatType, messages) {
         const type = msg.classList.contains('user-message') ? 'user' : 
                     msg.classList.contains('assistant-message') ? 'assistant' : 'system';
         
-        // 获取消息内容
+        // 获取消息内容 - 保存HTML内容以保留格式和LaTeX公式
         const contentDiv = msg.querySelector('.message-content');
-        let content = '';
-        content = contentDiv.innerHTML;
-        chatData.push({ type, content });
+        let content = contentDiv.innerHTML;
+        
+        // 确保LaTeX公式被正确保存
+        chatData.push({ 
+            type, 
+            content,
+            // 保存实际提示（如果有）用于图片OCR消息
+            actualPrompt: msg.dataset?.actualPrompt
+        });
     });
     
     // 如果没有实质性消息则不保存
@@ -718,7 +753,6 @@ function loadChatHistory(chatType) {
             } else {
                 // 加载对话
                 const id = item.dataset.id;
-                // console.log(history)
                 loadChat(chatType, id);
             }
         });
@@ -763,6 +797,11 @@ function loadChat(chatType, chatId) {
             messageDiv.appendChild(iconDiv);
             messageDiv.appendChild(contentDiv);
             
+            // 如果消息有存储的实际提示，恢复它
+            if (msg.actualPrompt) {
+                messageDiv.dataset.actualPrompt = msg.actualPrompt;
+            }
+            
             // 如果是用户消息，且不是raw_chat模式，添加相关问题和参考文件按钮
             if (msg.type === 'user' && chatType !== 'raw') {
                 const actionsDiv = document.createElement('div');
@@ -773,21 +812,21 @@ function loadChat(chatType, chatId) {
                 relatedQuestionsBtn.className = 'related-questions-btn';
                 relatedQuestionsBtn.innerHTML = '<i class="fas fa-question-circle"></i>';
                 relatedQuestionsBtn.title = '查看相关问题';
-                relatedQuestionsBtn.onclick = () => fetchRelatedQuestions(msg.content, messageDiv);
+                relatedQuestionsBtn.onclick = () => fetchRelatedQuestions(msg.actualPrompt || contentDiv.textContent, messageDiv);
                 
                 // 参考文件按钮
                 const referenceFilesBtn = document.createElement('button');
                 referenceFilesBtn.className = 'reference-files-btn';
                 referenceFilesBtn.innerHTML = '<i class="fas fa-file-alt"></i>';
                 referenceFilesBtn.title = '查看参考文件';
-                referenceFilesBtn.onclick = () => fetchReferenceFiles(msg.content, messageDiv);
+                referenceFilesBtn.onclick = () => fetchReferenceFiles(msg.actualPrompt || contentDiv.textContent, messageDiv);
                 
                 // 相关上下文按钮
                 const relatedContextsBtn = document.createElement('button');
                 relatedContextsBtn.className = 'related-contexts-btn';
                 relatedContextsBtn.innerHTML = '<i class="fas fa-book-open"></i>';
                 relatedContextsBtn.title = '查看相关上下文';
-                relatedContextsBtn.onclick = () => fetchRelatedContexts(msg.content, messageDiv);
+                relatedContextsBtn.onclick = () => fetchRelatedContexts(msg.actualPrompt || contentDiv.textContent, messageDiv);
                 
                 actionsDiv.appendChild(relatedQuestionsBtn);
                 actionsDiv.appendChild(referenceFilesBtn);
@@ -806,14 +845,29 @@ function loadChat(chatType, chatId) {
         });
         
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // 重新渲染LaTeX公式
+        if (window.MathJax) {
+            MathJax.typesetPromise([chatMessages]).catch(err => console.log('历史对话公式渲染错误:', err));
+        }
     }
 }
+
 function deleteChat(chatType, chatId) {
     if (confirm('确定要删除此对话？')) {
         let history = JSON.parse(localStorage.getItem(`${chatType}_history`) || '[]');
         history = history.filter(chat => chat.id !== chatId);
         localStorage.setItem(`${chatType}_history`, JSON.stringify(history));
+        
+        // 更新页面中的历史列表
         loadChatHistory(chatType);
+        
+        // 更新侧边栏的全局历史列表
+        loadGlobalChatHistory();
+        
+        // 直接从DOM中移除被删除的元素（即时反馈）
+        const deletedItems = document.querySelectorAll(`.chat-history-item[data-id="${chatId}"]`);
+        deletedItems.forEach(item => item.remove());
     }
 }
 
@@ -895,6 +949,7 @@ async function sendChatMessage({
     modelName = null,          // 模型名称
     temperature = 0.7,         // 温度参数
     systemPrompt = null,       // 系统提示（可选）
+    additionalData = {}        // 额外数据参数（可选，如is_image等）
 }) {
     if (!message || !message.trim()) return null;
     
@@ -934,7 +989,10 @@ async function sendChatMessage({
                 const contextResponse = await fetch(contextEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ 
+                        message,
+                        ...additionalData  // 包含额外数据，如 is_image 等
+                    })
                 });
                 
                 const contextData = await contextResponse.json();
@@ -969,8 +1027,11 @@ async function sendChatMessage({
             ollamaData,
             contentDiv,
             () => {
+                // 提取标题提示（如果有）
+                const titlePrompt = additionalData.titlePrompt || null;
+                
                 // 完成后保存对话
-                saveChat(chatType, document.querySelectorAll('#chat-messages > div'));
+                saveChat(chatType, document.querySelectorAll('#chat-messages > div'), titlePrompt);
             }
         );
         
@@ -1701,10 +1762,12 @@ async function fetchRelatedContexts(question, messageDiv) {
         console.error('获取相关上下文出错:', error);
     }
 }
+
 // 清空对话
 function clearChat(pagename) {
     showWelcomeMessage(pagename);
 }
+
 // 导出共用函数
 export {
     addMessage,

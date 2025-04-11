@@ -8,7 +8,7 @@ from utils.base_func import *
 import os
 import re
 import json
-
+import cv2
 api = Blueprint('api', __name__)
 
 # 直接初始化 Rag 实例
@@ -202,15 +202,90 @@ def reference_files():
             'message': f'获取参考文件失败: {str(e)}'
         }), 500
 
+@api.route('/ocr_process', methods=['POST'])
+def ocr_process():
+    """处理上传的图片进行OCR识别并结合用户问题进行回答"""
+    try:
+        # 检查是否有图片上传
+        if 'image' not in request.files:
+            return jsonify({
+                'status': 'error',
+                'message': '未上传图片'
+            }), 400
+            
+        image_file = request.files['image']
+        message = request.form.get('message', '')
+        
+        if not image_file or image_file.filename == '':
+            return jsonify({
+                'status': 'error',
+                'message': '无效的图片文件'
+            }), 400
+            
+        # 保存上传的图片到临时目录
+        image_path = os.path.join('temp', secure_filename(image_file.filename))
+        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+        image_file.save(image_path)
+        
+        try:
+            # 使用OCR引擎识别图片文本
+            ocr_engine = get_ocr_engine()
+            img = cv2.imread(image_path)
+            result = ocr_engine(img)
+            ocr_text = ''
+            for line in result:
+                line.pop('img')
+                if line['type'] != 'table':
+                    text = ''
+                    for content in line['res']:
+                        text += content["text"]
+                    ocr_text += (f'{text}') + '\n'
+                else:
+                    ocr_text += (f'{line["res"]["html"]}') + '\n'
+            
+            # 组合用户消息和OCR识别结果
+            combined_prompt = f"""以下是一张图片的OCR文本识别结果:
+
+            {ocr_text}
+
+            用户提问: {message if message else "请分析识别结果中的内容或回答识别结果中的问题"}
+            """
+            
+            # 删除临时图片文件
+            if os.path.exists(image_path):
+                os.remove(image_path)
+                
+            return jsonify({
+                'status': 'success',
+                'ocr_text': ocr_text,
+                'message': message,
+                'combined_prompt': combined_prompt,
+                'is_image': True  # 标记这是图片查询
+            })
+            
+        except Exception as e:
+            # 出错时确保删除临时文件
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            raise e
+            
+    except Exception as e:
+        print(f"OCR处理失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 @api.route('/chat/rag/prompt', methods=['POST'])
 def get_rag_prompt():
     """获取完整的 RAG prompt"""
     data = request.get_json()
     message = data.get('message', '')
+    is_image = data.get('is_image', False)  # 从请求中获取是否为图片查询的标记
     
     try:
-        # 生成 RAG 提示
-        prompt = rag.generate_prompt(message)
+        # 生成 RAG 提示，传入是否为图片查询的标记
+        prompt = rag.generate_prompt(message, is_image=is_image)
         
         return jsonify({
             'status': 'success',

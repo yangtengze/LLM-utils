@@ -349,24 +349,38 @@ class Rag:
         
         return results
     
-    def generate_prompt(self, query: str, top_k: int = None, threshold: float = 0.4) -> str:
+    def generate_prompt(self, query: str, top_k: int = None, threshold: float = 0.4, is_image: bool = False) -> str:
         """
         生成 RAG 提示
         :param query: 用户查询
         :param top_k: 返回最相关的 top_k 文档
         :param threshold: 相似度阈值，低于此值的文档将被过滤
+        :param is_image: 是否为图片查询
         :return: 生成的提示文本
         """
         if top_k is None:
             top_k = self.top_k
         relevant_docs = self.retrieve_documents(query, top_k, threshold)
-        prompt = f"""
-        请根据相关文档回答用户查询的问题。若有的文档不相关，尽量不要输出与不相关文档的内容，并根据你自己来输出。
+        
+        if is_image:
+            # 图片查询的提示模板
+            prompt = f"""
+            请根据OCR识别结果和相关文档回答用户关于图片的问题。
 
-        用户查询的问题: {query}
+            图片内容和用户提问: {query}
 
-        相关文档:\n
-        """
+            相关文档:\n
+            """
+        else:
+            # 常规文本查询的提示模板
+            prompt = f"""
+            请根据相关文档回答用户查询的问题。若有的文档不相关，尽量不要输出与不相关文档的内容，并根据你自己来输出。
+
+            用户查询的问题: {query}
+
+            相关文档:\n
+            """
+            
         for i, doc in enumerate(relevant_docs):
             prompt += f"""
             文档 {i+1} [来自: {doc['file_path']}]:
@@ -374,5 +388,9 @@ class Rag:
             相似度得分: {doc['score']:.4f}\n\n
             """
         
-        prompt += "请严格根据以上文档内容回答用户问题，不要添加不存在于文档中的信息。"
+        if is_image:
+            prompt += "请分析图片OCR识别的内容，并结合相关文档提供准确、全面的回答。如果文档与图片内容无关，请优先基于图片内容回答。"
+        else:
+            prompt += "请严格根据以上文档内容回答用户问题，不要添加不存在于文档中的信息。"
+            
         return prompt
