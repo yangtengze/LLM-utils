@@ -77,6 +77,10 @@
                 <i class="fas fa-book"></i>
                 RAG Chat
             </a>
+            <a href="{{ url_for('chunks_manager') }}" class="nav-item">
+                <i class="fas fa-puzzle-piece"></i>
+                Chunks Manager
+            </a>
         </div>
     </nav>
 
@@ -106,13 +110,13 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% if not request.endpoint or not 'chat.' in request.endpoint %}
+    {% if not request.endpoint or not 'chat.' or not 'chunks_manager' in request.endpoint %}
     <footer class="footer">
         <div class="footer-content">
             <span class="author">Created by <a href="https://github.com/yangtengze" target="_blank">yangtengze</a></span>
             <a href="https://github.com/yangtengze/LLM-utils" class="github-link" target="_blank">
                 <i class="fab fa-github"></i>
-            </a>
+            </a>              
         </div>
     </footer>
     {% endif %}

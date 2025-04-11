@@ -34,7 +34,7 @@ rag:
     # path: "quentinz/bge-large-zh-v1.5"         # HuggingFace 模型名称
     device: ["cuda"]                  # 运行设备（cpu/cuda）
     normalize_embeddings: True        # 是否归一化嵌入向量 True/False
-
+    dimension: 1024
   vector_store:                       # 向量存储配置
     type: "faiss"                     # 向量数据库类型（faiss/chroma）
     index_path: "data/vec_db_store"   # 索引存储路径

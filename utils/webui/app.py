@@ -27,3 +27,8 @@ def serve_document(filename):
 def index():
     """主页"""
     return render_template('index.html')
+
+@app.route('/chunks-manager')
+def chunks_manager():
+    """分块管理页面"""
+    return render_template('chunks_manager.html')

@@ -34,7 +34,7 @@ class Rag:
         self.embedding_model = FlagModel(self.config['rag']['embedding_model']['path'], 
                   query_instruction_for_retrieval="为这个句子生成表示以用于检索相关文章：",
                   use_fp16=True,devices=self.device)
-
+        self.embedding_model.dimension = self.config['rag']['embedding_model']['dimension']
         self.top_k = self.config['rag']['retrieval']['top_k']
         self.score_threshold = self.config['rag']['retrieval']['score_threshold']
         self.similarity_metric = self.config['rag']['vector_store']['similarity_metric']
@@ -68,15 +68,27 @@ class Rag:
                 return json.load(f)
         return []
 
-    def _save_data(self):
+    def _save_data(self,vectors=True,docs=True):
         """保存当前数据到磁盘"""
         # 保存向量
-        if self.doc_vectors is not None:
+        if vectors and self.doc_vectors is not None:
             np.save(self._get_vector_path(), self.doc_vectors)
         
-        # 保存元数据
-        with open(self._get_metadata_path(), "w", encoding="utf-8") as f:
-            json.dump(self.docs, f, ensure_ascii=False, indent=2)
+        # 确保所有文档都有新的元数据格式字段
+        if docs:
+            for doc in self.docs:
+                if 'chunk_index' not in doc:
+                    doc['chunk_index'] = 0
+                if 'chunk_content' not in doc:
+                    doc['chunk_content'] = doc.get('content', '')
+            if 'total_chunks' not in doc:
+                # 计算此文件的总块数
+                file_path = doc.get('file_path')
+                same_file_docs = [d for d in self.docs if d.get('file_path') == file_path]
+                doc['total_chunks'] = len(same_file_docs)
+            # 保存元数据
+            with open(self._get_metadata_path(), "w", encoding="utf-8") as f:
+                json.dump(self.docs, f, ensure_ascii=False, indent=2)
     
     def _cosine_similarity(self, query_vector, doc_vectors):
         """
@@ -172,14 +184,17 @@ class Rag:
 
                         # 加载文档内容
                         chunks = loader.load(file_path)
+                        total_chunks = len(chunks)
                         
                         # 处理文档块
                         file_vectors = []
-                        for chunk in tqdm(chunks, desc=f"📄 {Path(file_path).name}", leave=True):
-                            # 存储元数据
+                        for i, chunk in enumerate(tqdm(chunks, desc=f"📄 {Path(file_path).name}", leave=True)):
+                            # 存储元数据 - 使用新的格式
                             self.docs.append({
                                 "file_path": file_path,
-                                "content": str(chunk),
+                                "chunk_index": i,  # 记录块索引
+                                "chunk_content": str(chunk),  # 新增字段以符合格式要求
+                                "total_chunks": total_chunks,  # 记录总块数
                                 "timestamp": time.time()  # 添加时间戳用于版本控制
                             })
                             # 生成向量
@@ -207,62 +222,131 @@ class Rag:
         if self._get_metadata_path().exists():
             os.remove(self._get_metadata_path())
     
+    def rebuild_vector_db(self, file_path=None, chunk_indices=None):
+        """
+        重建向量数据库
+        在修改了元数据中的文档内容后调用此方法来更新向量
+        
+        参数:
+            file_path: 可选，指定要重建的文件路径
+            chunk_indices: 可选，指定要重建的chunk索引列表(当file_path提供时有效)
+        """
+        if not self.docs:
+            print("无可用文档，无法重建向量库")
+            return
+        
+        try:
+            # 如果已有向量存储，加载它
+            if self.doc_vectors is not None:
+                vectors = self.doc_vectors.tolist()
+            else:
+                vectors = [None] * len(self.docs)
+            
+            # 确定需要重建的文档索引
+            rebuild_indices = []
+            if file_path is not None:
+                # 只重建指定文件的指定块
+                file_path = os.path.abspath(file_path)
+                for i, doc in enumerate(self.docs):
+                    if doc.get('file_path') == file_path:
+                        if chunk_indices is None or int(doc.get('chunk_index', 0)) in chunk_indices:
+                            rebuild_indices.append(i)
+                print(f"将重建文件 {file_path} 的 {len(rebuild_indices)} 个分块向量")
+            else:
+                # 重建所有文档
+                rebuild_indices = list(range(len(self.docs)))
+                print(f"将重建所有 {len(rebuild_indices)} 个分块向量")
+            
+            if not rebuild_indices:
+                print("没有找到需要重建的文档")
+                return
+                
+            print("正在重建向量数据库...")
+            
+            with tqdm(rebuild_indices, desc="📁 重建向量进度") as pbar:
+                for i in pbar:
+                    doc = self.docs[i]
+                    chunk_content = doc.get('chunk_content', '')
+                    
+                    if chunk_content:
+                        # 生成新的向量
+                        vector = self.embedding_model.encode(chunk_content)
+                        vectors[i] = vector
+                    else:
+                        print(f"警告: 文档 {doc.get('file_path')} 没有内容，跳过")
+                        # 添加一个空向量以保持索引对齐
+                        vectors[i] = np.zeros(self.embedding_model.dimension)
+            
+            # 更新向量存储
+            self.doc_vectors = np.array(vectors)
+            
+            # 保存到磁盘
+            self._save_data()
+            
+            print(f"向量数据库重建完成，更新了 {len(rebuild_indices)} 个文档向量")
+        
+        except Exception as e:
+            print(f"重建向量数据库失败: {str(e)}")
+            raise
+    
     def retrieve_documents(self, query: str, top_k: int = None, threshold: float = 0.4) -> List[Dict]:
         """
-        检索相关文档并返回带路径的结果
-        :param query: 查询文本
-        :param top_k: 返回结果数量
-        :param threshold: 相似度阈值，低于此值的文档将被过滤
-        :return: 包含路径和内容的文档列表
+        检索与查询最相关的文档
+        
+        参数:
+            query: 用户查询
+            top_k: 返回的文档数量，如果为None则使用配置值
+            threshold: 相似度阈值，低于此值的文档将被过滤
+            
+        返回:
+            相关文档列表，按相似度降序排序
         """
         if top_k is None:
-            top_k = self.top_k  # 使用类属性 top_k 作为默认值
-        if self.doc_vectors is None:
-            raise ValueError("请先加载文档")
+            top_k = self.top_k
+        
+        if not self.docs or self.doc_vectors is None:
+            print("无可用文档")
+            return []
 
         # 生成查询向量
-        # query_vector = self.embedding_model.encode(query).reshape(1, -1)
-        query_vector = self.embedding_model.encode_queries([query])
-        # print(query_vector)
-        # query_vector.shape: (1, 1024)
-        # doc_vectors.shape: (num_docs, 1024)
-        # 计算相似度
-        if self.similarity_metric == "cosine":
+        query_vector = self.embedding_model.encode(query).reshape(1, -1)  # 确保形状是 (1, dim)
+        
+        # 计算相似度得分
+        if self.similarity_metric == 'cosine':
             similarities = self._cosine_similarity(query_vector, self.doc_vectors)
-        elif self.similarity_metric == "l2":
+        elif self.similarity_metric == 'l2':
             similarities = self._l2_similarity(query_vector, self.doc_vectors)
-            # 对于L2距离，我们使用的是负距离，需要调整阈值
-            threshold = -threshold if threshold > 0 else threshold
         else:
-            raise ValueError(f"不支持的相似度计算方式: {self.similarity_metric}")
+            raise ValueError(f"不支持的相似度度量：{self.similarity_metric}")
+
+        # 找到相似度得分最高的文档
+        indices = np.argsort(similarities)[::-1][:top_k]
         
-        # 确保 top_k 不超过可用文档数量
-        top_k = min(top_k, len(self.docs))
-        
-        # 先获取排序后的索引
-        sorted_indices = np.argsort(similarities)[::-1]
-        
-        # 创建结果列表
-        results = []
-        
-        # 遍历排序后的前top_k个文档
-        for i in sorted_indices[:top_k]:
-            # 检查相似度是否高于阈值
-            score = float(similarities[i])  # 确保转换为Python float类型
-            if self.similarity_metric == "cosine" and score < threshold:
-                # 对于余弦相似度，小于阈值则跳过
-                continue
-            elif self.similarity_metric == "l2" and score < threshold:
-                # 对于L2距离（已取负值），小于阈值则跳过
-                continue
+        # 过滤低于阈值的结果
+        filtered_indices = []
+        for idx in indices:
+            if similarities[idx] >= threshold:
+                filtered_indices.append(idx)
                 
-            # 添加到结果列表
-            results.append({
-                "score": score,
-                "content": self.docs[i]["content"],
-                "file_path": self.docs[i]["file_path"]
-            })
+        # 收集结果
+        results = []
+        for idx in filtered_indices:
+            doc = dict(self.docs[idx])  # 创建副本避免修改原数据
+            score = float(similarities[idx])  # 转换为Python标准类型方便序列化
+            doc['score'] = score
             
+            # 确保文档具有所需的字段（向后兼容）
+            if 'chunk_index' not in doc:
+                doc['chunk_index'] = 0
+            if 'chunk_content' not in doc:
+                doc['chunk_content'] = doc.get('chunk_content', '')
+            if 'total_chunks' not in doc:
+                # 计算此文件的总块数
+                same_file_docs = [d for d in self.docs if d.get('file_path') == doc.get('file_path')]
+                doc['total_chunks'] = len(same_file_docs)
+                
+            results.append(doc)
+        
         return results
     
     def generate_prompt(self, query: str, top_k: int = None, threshold: float = 0.4) -> str:
@@ -286,7 +370,7 @@ class Rag:
         for i, doc in enumerate(relevant_docs):
             prompt += f"""
             文档 {i+1} [来自: {doc['file_path']}]:
-            {doc['content']}
+            {doc['chunk_content']}
             相似度得分: {doc['score']:.4f}\n\n
             """
         

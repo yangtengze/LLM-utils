@@ -7,6 +7,7 @@ from utils.ocr_manager import get_ocr_engine
 from utils.base_func import *
 import os
 import re
+import json
 
 api = Blueprint('api', __name__)
 
@@ -160,7 +161,7 @@ def reference_files():
         reference_contents = []
         reference_files = []
         for doc in relevant_docs:
-            file_content = doc.get('content', '')
+            file_content = doc.get('chunk_content', '')
 
             file_path = doc.get('file_path', '')
             # 将绝对路径转换为相对于项目根目录的路径
@@ -254,7 +255,7 @@ def preview_document():
     file_path = data.get('file_path')
     
     try:
-        allowed_extensions = ['.txt', '.md', '.csv', '.log', '.pdf', '.docx', '.html', '']
+        allowed_extensions = ['.txt', '.md', '.csv', '.pdf', '.docx', '.html', '']
         
         if not file_path or not any(file_path.endswith(ext) for ext in allowed_extensions):
             return jsonify({
@@ -338,5 +339,132 @@ def upload_files():
         return jsonify({
             'status': 'error',
             'message': f'上传文件失败: {str(e)}'
+        }), 500
+
+@api.route('/chunks', methods=['POST'])
+def get_document_chunks():
+    """获取特定文档的分块内容"""
+    try:
+        data = request.get_json()
+        file_path = data.get('file_path')
+        file_path = os.path.abspath(file_path);
+        if not file_path:
+            return jsonify({
+                'status': 'error',
+                'message': '未提供文件路径'
+            }), 400
+        
+        # 读取元数据文件
+        metadata_path = rag._get_metadata_path()
+        if not metadata_path.exists():
+            return jsonify({
+                'status': 'error',
+                'message': '元数据文件不存在'
+            }), 404
+        
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        
+        # 获取指定文件的分块
+        file_chunks = []
+        for doc in metadata:
+            if doc.get('file_path') == file_path:
+                # 将文档转换为新的格式
+                chunk_info = {
+                    'file_path': doc.get('file_path', ''),
+                    'chunk_index': doc.get('chunk_index', 0),
+                    'chunk_content': doc.get('chunk_content', ''),
+                    'total_chunks': doc.get('total_chunks', '')  # 稍后更新
+                }
+                file_chunks.append(chunk_info)
+        
+        # # 计算总块数并更新
+        # total_chunks = len(file_chunks)
+        # for chunk in file_chunks:
+        #     chunk['total_chunks'] = total_chunks
+        
+        # 按块索引排序
+        file_chunks.sort(key=lambda x: int(x['chunk_index']) if x['chunk_index'] else 0)
+        
+        return jsonify({
+            'status': 'success',
+            'chunks': file_chunks
+        })
+    
+    except Exception as e:
+        print(f"获取文档分块失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@api.route('/update_chunk', methods=['POST'])
+def update_chunk():
+    """更新文档分块内容并重建向量库"""
+    try:
+        data = request.get_json()
+        file_path = data.get('file_path')
+        chunk_index = data.get('chunk_index')
+        chunk_content = data.get('chunk_content')
+        
+        if not all([file_path, chunk_index is not None, chunk_content is not None]):
+            return jsonify({
+                'status': 'error',
+                'message': '缺少必要参数'
+            }), 400
+        
+        # 确保文件路径是绝对路径
+        file_path = os.path.abspath(file_path)
+        
+        # 读取元数据文件
+        metadata_path = rag._get_metadata_path()
+        if not metadata_path.exists():
+            return jsonify({
+                'status': 'error',
+                'message': '元数据文件不存在'
+            }), 404
+        
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        
+        # 更新指定的分块内容
+        updated = False
+        for doc in metadata:
+            if doc.get('file_path') == file_path and str(doc.get('chunk_index')) == str(chunk_index):
+                doc['chunk_content'] = chunk_content
+                updated = True
+                break
+        
+        if not updated:
+            return jsonify({
+                'status': 'error',
+                'message': '未找到指定的分块'
+            }), 404
+        
+        # 保存更新后的元数据文件
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=4)
+        
+        # 确保内存中的数据与文件同步
+        for doc in rag.docs:
+            if doc.get('file_path') == file_path and str(doc.get('chunk_index')) == str(chunk_index):
+                doc['chunk_content'] = chunk_content
+                break
+        
+        
+        # 仅重建修改的分块向量
+        chunk_index_int = int(chunk_index)
+        rag.rebuild_vector_db(file_path=file_path, chunk_indices=[chunk_index_int])
+        
+        return jsonify({
+            'status': 'success',
+            'message': '分块内容已更新并重建向量库'
+        })
+    
+    except Exception as e:
+        print(f"更新分块内容失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
         }), 500
 
