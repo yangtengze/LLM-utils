@@ -8,6 +8,8 @@ import io
 from utils.load_config import configs
 from utils.ocr_manager import get_ocr_engine
 from PIL import Image, ImageFile
+from tqdm import tqdm
+fitz.TOOLS.mupdf_display_errors(False)
 
 class PDFLoader:
     """
@@ -45,6 +47,7 @@ class PDFLoader:
         :return: 提取的文本内容
         """
         try:
+            # print(f"处理图片: 第{page_num}页 第{img_index}张 (尺寸: {width}x{height})")
             # 将图片字节数据转换为PIL Image对象
             pil_image = Image.open(io.BytesIO(image_data))
             
@@ -94,15 +97,18 @@ class PDFLoader:
         try:
             # 打开PDF文件
             with fitz.open(file_path) as doc:
+                # 显示处理PDF页面的进度条
+                print(f"正在处理PDF文件: {os.path.basename(file_path)}")
                 # 遍历每一页
-                for page_num, page in enumerate(doc):
+                for page_num, page in tqdm(enumerate(doc), total=len(doc), desc="处理PDF页面"):
                     # 获取页面上的所有文本和图像引用
                     # 使用 "dict" 模式获取带有更多结构信息的文本
                     page_dict = page.get_text("dict")
                     blocks = page_dict["blocks"]
                     
+                    
                     # 处理每个块（文本块或图片块）
-                    for block in blocks:
+                    for block_idx, block in enumerate(blocks):
                         block_type = block["type"]
                         # 处理文本块
                         if block_type == 0:  # 0 表示文本

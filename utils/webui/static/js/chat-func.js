@@ -1333,7 +1333,7 @@ async function fetchReferenceFiles(question, messageDiv) {
                                                 renderFootnotes: true,
                                                 renderEndnotes: true
                                             }).then(() => {
-                                                console.log('文档渲染成功');
+                                                // console.log('文档渲染成功');
                                             }).catch(error => {
                                                 console.error('文档渲染失败:', error);
                                                 container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
@@ -1353,7 +1353,7 @@ async function fetchReferenceFiles(question, messageDiv) {
                                                 renderFootnotes: true,
                                                 renderEndnotes: true
                                             }).then(() => {
-                                                console.log('文档渲染成功');
+                                                // console.log('文档渲染成功');
                                             }).catch(error => {
                                                 console.error('文档渲染失败:', error);
                                                 container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
@@ -1365,7 +1365,7 @@ async function fetchReferenceFiles(question, messageDiv) {
                                                 try {
                                                     const renderer = new DocxJS.DocxRenderer();
                                                     renderer.render(arrayBuffer, container);
-                                                    console.log('文档渲染成功');
+                                                    // console.log('文档渲染成功');
                                                 } catch (error) {
                                                     console.error('文档渲染失败:', error);
                                                     container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
@@ -1450,95 +1450,61 @@ async function fetchRelatedContexts(question, messageDiv) {
         });
         
         const data = await response.json();
-        console.log(data);
+        console.log('query related_object: \n', data);
         
         // 移除加载指示器
         messageDiv.removeChild(loadingIndicator);
         
+        // 创建相关上下文容器
+        const container = document.createElement('div');
+        container.className = 'related-contexts-container';
+        
+        // 添加标题
+        const title = document.createElement('h4');
+        title.innerHTML = '<i class="fas fa-book-open"></i> 相关上下文';
+        container.appendChild(title);
+        
         if (data.status === 'success' && data.reference_contents && data.reference_contents.length > 0) {
-            console.log(data.reference_contents);
-            // 创建相关上下文容器
-            const container = document.createElement('div');
-            container.className = 'related-contexts-container';
+            // console.log('data.reference_contents:', data.reference_contents);
             
-            // 添加标题
-            const title = document.createElement('h4');
-            title.innerHTML = '<i class="fas fa-book-open"></i> 相关上下文';
-            container.appendChild(title);
+            // 创建上下文列表
+            const contextsList = document.createElement('div');
+            contextsList.className = 'related-contexts-list';
             
-            if (data.reference_contents.length === 0) {
-                const noContexts = document.createElement('p');
-                noContexts.className = 'no-contexts-message';
-                noContexts.textContent = '没有找到相关上下文';
-                container.appendChild(noContexts);
-            } else {
-                // 创建上下文列表
-                const contextsList = document.createElement('div');
-                contextsList.className = 'related-contexts-list';
+            data.reference_contents.forEach((ctx, index) => {
+                const contextItem = document.createElement('div');
+                contextItem.className = 'related-context-item';
                 
-                data.reference_contents.forEach((ctx, index) => {
-                    const contextItem = document.createElement('div');
-                    contextItem.className = 'related-context-item';
-                    
-                    // 创建标题栏
-                    const titleBar = document.createElement('div');
-                    titleBar.className = 'context-title-bar';
-                    
-                    // 获取文件名（不带路径）
-                    const fileName = ctx.file_path.split('/').pop();
-                    titleBar.innerHTML = `
-                        <span class="file-name"><i class="fas fa-file-alt"></i> ${fileName}</span>
-                        <span class="context-score">${(ctx.score * 100).toFixed(1)}%</span>
-                    `;
-                    
-                    // 创建内容区域
-                    const contentArea = document.createElement('div');
-                    contentArea.className = 'context-content';
-                    contentArea.textContent = ctx.content;
-                    
-                    // 将标题栏和内容添加到项目中
-                    contextItem.appendChild(titleBar);
-                    contextItem.appendChild(contentArea);
-                    
-                    // 添加展开/收起切换功能
-                    titleBar.addEventListener('click', () => {
-                        contextItem.classList.toggle('expanded');
-                    });
-                    
-                    contextsList.appendChild(contextItem);
+                // 创建标题栏
+                const titleBar = document.createElement('div');
+                titleBar.className = 'context-title-bar';
+                
+                // 获取文件名（不带路径）
+                const fileName = ctx.file_path.split('/').pop();
+                titleBar.innerHTML = `
+                    <span class="file-name"><i class="fas fa-file-alt"></i> ${fileName}</span>
+                    <span class="context-score">${(ctx.score * 100).toFixed(1)}%</span>
+                `;
+                
+                // 创建内容区域
+                const contentArea = document.createElement('div');
+                contentArea.className = 'context-content';
+                contentArea.textContent = ctx.content;
+                
+                // 将标题栏和内容添加到项目中
+                contextItem.appendChild(titleBar);
+                contextItem.appendChild(contentArea);
+                
+                // 添加展开/收起切换功能
+                titleBar.addEventListener('click', () => {
+                    contextItem.classList.toggle('expanded');
                 });
                 
-                container.appendChild(contextsList);
-            }
+                contextsList.appendChild(contextItem);
+            });
             
-            // 添加到消息操作按钮之后
-            const actionsDiv = messageDiv.querySelector('.message-actions');
-            if (actionsDiv) {
-                // 确定插入位置，考虑到可能已有其他容器
-                const questionsContainer = messageDiv.querySelector('.related-questions-container');
-                const filesContainer = messageDiv.querySelector('.reference-files-container');
-                
-                if (filesContainer) {
-                    messageDiv.insertBefore(container, filesContainer.nextSibling);
-                } else if (questionsContainer) {
-                    messageDiv.insertBefore(container, questionsContainer.nextSibling);
-                } else {
-                    messageDiv.insertBefore(container, actionsDiv.nextSibling);
-                }
-            } else {
-                // 如果没有操作按钮，直接添加到消息末尾
-                messageDiv.appendChild(container);
-            }
+            container.appendChild(contextsList);
         } else if (data.status === 'success' && data.reference_files && data.reference_files.length > 0) {
-            // 创建相关上下文容器
-            const container = document.createElement('div');
-            container.className = 'related-contexts-container';
-            
-            // 添加标题
-            const title = document.createElement('h4');
-            title.innerHTML = '<i class="fas fa-book-open"></i> 相关上下文';
-            container.appendChild(title);
-            
             // 创建上下文列表
             const contextsList = document.createElement('div');
             contextsList.className = 'related-contexts-list';
@@ -1668,7 +1634,7 @@ async function fetchRelatedContexts(question, messageDiv) {
                                                 renderFootnotes: true,
                                                 renderEndnotes: true
                                             }).then(() => {
-                                                console.log('文档渲染成功');
+                                                // console.log('文档渲染成功');
                                             }).catch(error => {
                                                 console.error('文档渲染失败:', error);
                                                 container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
@@ -1688,7 +1654,7 @@ async function fetchRelatedContexts(question, messageDiv) {
                                                 renderFootnotes: true,
                                                 renderEndnotes: true
                                             }).then(() => {
-                                                console.log('文档渲染成功');
+                                                // console.log('文档渲染成功');
                                             }).catch(error => {
                                                 console.error('文档渲染失败:', error);
                                                 container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
@@ -1700,7 +1666,7 @@ async function fetchRelatedContexts(question, messageDiv) {
                                                 try {
                                                     const renderer = new DocxJS.DocxRenderer();
                                                     renderer.render(arrayBuffer, container);
-                                                    console.log('文档渲染成功');
+                                                    // console.log('文档渲染成功');
                                                 } catch (error) {
                                                     console.error('文档渲染失败:', error);
                                                     container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
@@ -1736,27 +1702,32 @@ async function fetchRelatedContexts(question, messageDiv) {
             });
             
             container.appendChild(contextsList);
+        } else {
+            // 没有找到相关上下文时显示提示信息
+            const noContexts = document.createElement('p');
+            noContexts.className = 'no-contexts-message';
+            noContexts.textContent = '没有找到相关上下文';
+            container.appendChild(noContexts);
+            // console.error('获取相关上下文失败:', data.message || '未找到相关上下文');
+        }
+        
+        // 添加到消息操作按钮之后
+        const actionsDiv = messageDiv.querySelector('.message-actions');
+        if (actionsDiv) {
+            // 确定插入位置，考虑到可能已有其他容器
+            const questionsContainer = messageDiv.querySelector('.related-questions-container');
+            const filesContainer = messageDiv.querySelector('.reference-files-container');
             
-            // 添加到消息操作按钮之后
-            const actionsDiv = messageDiv.querySelector('.message-actions');
-            if (actionsDiv) {
-                // 确定插入位置，考虑到可能已有其他容器
-                const questionsContainer = messageDiv.querySelector('.related-questions-container');
-                const filesContainer = messageDiv.querySelector('.reference-files-container');
-                
-                if (filesContainer) {
-                    messageDiv.insertBefore(container, filesContainer.nextSibling);
-                } else if (questionsContainer) {
-                    messageDiv.insertBefore(container, questionsContainer.nextSibling);
-                } else {
-                    messageDiv.insertBefore(container, actionsDiv.nextSibling);
-                }
+            if (filesContainer) {
+                messageDiv.insertBefore(container, filesContainer.nextSibling);
+            } else if (questionsContainer) {
+                messageDiv.insertBefore(container, questionsContainer.nextSibling);
             } else {
-                // 如果没有操作按钮，直接添加到消息末尾
-                messageDiv.appendChild(container);
+                messageDiv.insertBefore(container, actionsDiv.nextSibling);
             }
         } else {
-            console.error('获取相关上下文失败:', data.message || '未找到相关上下文');
+            // 如果没有操作按钮，直接添加到消息末尾
+            messageDiv.appendChild(container);
         }
     } catch (error) {
         console.error('获取相关上下文出错:', error);

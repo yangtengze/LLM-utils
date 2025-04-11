@@ -5,7 +5,7 @@ from typing import List, Dict
 from pathlib import Path
 import numpy as np
 from tqdm import tqdm
-from FlagEmbedding import FlagModel
+from FlagEmbedding import FlagModel, FlagReranker
 import numpy as np
 import json
 import os
@@ -35,11 +35,21 @@ class Rag:
                   query_instruction_for_retrieval="为这个句子生成表示以用于检索相关文章：",
                   use_fp16=True,devices=self.device)
         self.embedding_model.dimension = self.config['rag']['embedding_model']['dimension']
+        
+        # 初始化重排序模型
+        self.reranker_device = self.config['rag']['reranker_model']['device']
+        self.reranker_model = FlagReranker(
+            self.config['rag']['reranker_model']['path'],
+            use_fp16=True,
+            device=self.reranker_device
+        )
+        
+        # 检索参数
         self.top_k = self.config['rag']['retrieval']['top_k']
+        self.initial_retrieval_k = self.config['rag']['retrieval']['initial_retrieval_k']
         self.score_threshold = self.config['rag']['retrieval']['score_threshold']
+        self.rerank_threshold = self.config['rag']['retrieval']['rerank_score_threshold']
         self.similarity_metric = self.config['rag']['vector_store']['similarity_metric']
-
-        # self.reranker_model = 
     
     def get_all_files_in_directory(self) -> List[str]:
         directory_path = Path(self.documents_path)  # 确保这是一个 Path 对象
@@ -289,9 +299,9 @@ class Rag:
             print(f"重建向量数据库失败: {str(e)}")
             raise
     
-    def retrieve_documents(self, query: str, top_k: int = None, threshold: float = 0.4) -> List[Dict]:
+    def retrieve_documents(self, query: str, top_k: int = None, threshold: float = None, rerank_threshold: float = None) -> List[Dict]:
         """
-        检索与查询最相关的文档
+        检索与查询最相关的文档，先使用embedding模型检索，再使用reranker模型重排序
         
         参数:
             query: 用户查询
@@ -303,11 +313,18 @@ class Rag:
         """
         if top_k is None:
             top_k = self.top_k
+            
+        if threshold is None:
+            threshold = self.score_threshold
+        
+        if rerank_threshold is None:
+            rerank_threshold = self.rerank_threshold
         
         if not self.docs or self.doc_vectors is None:
             print("无可用文档")
             return []
 
+        # 第一阶段：使用embedding模型进行初步检索
         # 生成查询向量
         query_vector = self.embedding_model.encode(query).reshape(1, -1)  # 确保形状是 (1, dim)
         
@@ -319,48 +336,80 @@ class Rag:
         else:
             raise ValueError(f"不支持的相似度度量：{self.similarity_metric}")
 
-        # 找到相似度得分最高的文档
-        indices = np.argsort(similarities)[::-1][:top_k]
-        
-        # 过滤低于阈值的结果
-        filtered_indices = []
+        # 找到相似度得分最高的initial_retrieval_k个文档
+        initial_k = self.initial_retrieval_k
+        indices = np.argsort(similarities)[::-1][:initial_k]
+        # 收集初步检索结果
+        initial_results = []
         for idx in indices:
-            if similarities[idx] >= threshold:
-                filtered_indices.append(idx)
+            if similarities[idx] >= threshold:  # 仍然应用阈值过滤
+                doc = dict(self.docs[idx])  # 创建副本避免修改原数据
+                doc['initial_score'] = float(similarities[idx])  # 保存初始得分
                 
-        # 收集结果
-        results = []
-        for idx in filtered_indices:
-            doc = dict(self.docs[idx])  # 创建副本避免修改原数据
-            score = float(similarities[idx])  # 转换为Python标准类型方便序列化
-            doc['score'] = score
-            
-            # 确保文档具有所需的字段（向后兼容）
-            if 'chunk_index' not in doc:
-                doc['chunk_index'] = 0
-            if 'chunk_content' not in doc:
-                doc['chunk_content'] = doc.get('chunk_content', '')
-            if 'total_chunks' not in doc:
-                # 计算此文件的总块数
-                same_file_docs = [d for d in self.docs if d.get('file_path') == doc.get('file_path')]
-                doc['total_chunks'] = len(same_file_docs)
-                
-            results.append(doc)
+                # 确保文档具有所需的字段（向后兼容）
+                if 'chunk_index' not in doc:
+                    doc['chunk_index'] = 0
+                if 'chunk_content' not in doc:
+                    doc['chunk_content'] = doc.get('chunk_content', '')
+                if 'total_chunks' not in doc:
+                    # 计算此文件的总块数
+                    same_file_docs = [d for d in self.docs if d.get('file_path') == doc.get('file_path')]
+                    doc['total_chunks'] = len(same_file_docs)
+                    
+                initial_results.append(doc)
         
-        return results
+        if not initial_results:
+            print("初步检索未找到相关文档")
+            return []
+            
+        # 第二阶段：使用reranker模型进行重排序
+        pairs = []
+        for doc in initial_results:
+            pairs.append((query, doc['chunk_content']))
+        
+        # 调用reranker模型获取重排序分数
+        rerank_scores = self.reranker_model.compute_score(pairs)
+        
+        # 将reranker分数归一化到0-1范围内（使用sigmoid函数）
+        def sigmoid(x):
+            return 1 / (1 + np.exp(-x))
+        
+        # 为文档添加重排序分数（归一化后的）
+        reranked_results = []
+        for i, doc in enumerate(initial_results):
+            # 复制文档以保留所有原始字段
+            reranked_doc = dict(doc)
+            # 使用sigmoid将得分归一化到0-1范围
+            normalized_score = float(sigmoid(rerank_scores[i]))
+            reranked_doc['score'] = normalized_score  # reranker归一化分数作为最终分数
+            if reranked_doc['score'] >= rerank_threshold:
+                reranked_results.append(reranked_doc)
+        
+        # 按重排序分数降序排序
+        reranked_results = sorted(reranked_results, key=lambda x: x['score'], reverse=True)
+        
+        # 返回top_k个文档
+        final_results = reranked_results[:top_k]
+        
+        return final_results
     
-    def generate_prompt(self, query: str, top_k: int = None, threshold: float = 0.4, is_image: bool = False) -> str:
+    def generate_prompt(self, query: str, top_k: int = None, threshold: float = None, rerank_threshold: float = None, is_image: bool = False) -> str:
         """
         生成 RAG 提示
         :param query: 用户查询
         :param top_k: 返回最相关的 top_k 文档
         :param threshold: 相似度阈值，低于此值的文档将被过滤
+        :param rerank_threshold: 重排序分数阈值，低于此值的文档将被过滤
         :param is_image: 是否为图片查询
         :return: 生成的提示文本
         """
         if top_k is None:
-            top_k = self.top_k
-        relevant_docs = self.retrieve_documents(query, top_k, threshold)
+            top_k = self.top_k  
+        if threshold is None:
+            threshold = self.score_threshold
+        if rerank_threshold is None:
+            rerank_threshold = self.rerank_threshold
+        relevant_docs = self.retrieve_documents(query, top_k, threshold, rerank_threshold)
         
         if is_image:
             # 图片查询的提示模板

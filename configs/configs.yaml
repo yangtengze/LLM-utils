@@ -35,6 +35,11 @@ rag:
     device: ["cuda"]                  # 运行设备（cpu/cuda）
     normalize_embeddings: True        # 是否归一化嵌入向量 True/False
     dimension: 1024
+    
+  reranker_model:                     # 重排序模型配置
+    path: "D:/models/bge-reranker-large"  # 重排序模型路径
+    device: "cuda"                    # 运行设备（cpu/cuda）
+    
   vector_store:                       # 向量存储配置
     type: "faiss"                     # 向量数据库类型（faiss/chroma）
     index_path: "data/vec_db_store"   # 索引存储路径
@@ -42,7 +47,9 @@ rag:
   
   retrieval:                          # 检索配置
     top_k: 3                          # 返回的文档数量
-    score_threshold: 0.6              # 相似度分数阈值
+    initial_retrieval_k: 5            # 初始检索的文档数量（重排序前）
+    score_threshold: 0.4              # 相似度分数阈值
+    rerank_score_threshold: 0.6       # 重排序分数阈值
 
 
 # WebUI 配置

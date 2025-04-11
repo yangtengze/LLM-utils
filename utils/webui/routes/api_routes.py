@@ -9,11 +9,30 @@ import os
 import re
 import json
 import cv2
+import uuid
+import urllib.parse
+import numpy as np
 api = Blueprint('api', __name__)
 
 # 直接初始化 Rag 实例
 rag = Rag()
 rag.load_documents(rag.files)
+
+# 自定义安全文件名处理函数，保留中文字符
+def secure_filename_with_chinese(filename):
+    """处理文件名，保留中文字符但移除不安全字符"""
+    # 保留原始扩展名
+    name, ext = os.path.splitext(filename)
+    
+    # 移除不安全字符，但保留中文字符
+    # 只保留字母、数字、中文字符、点、下划线和连字符
+    name = re.sub(r'[^\w\.-\u4e00-\u9fff]', '_', name)
+    
+    # 确保文件名不为空
+    if not name:
+        name = f"file_{uuid.uuid4().hex[:8]}"
+        
+    return name + ext
 
 @api.route('/config', methods=['GET'])
 def get_config():
@@ -93,7 +112,7 @@ def related_questions():
     """获取与用户提供的问题相关的问题列表"""
     data = request.get_json()
     question = data.get('question', '')
-    count = data.get('count', 5)  # 默认返回5个相关问题
+    count = data.get('count', 3)  # 默认返回3个相关问题
     
     try:
         # 使用 RAG 系统生成相关问题
@@ -102,6 +121,7 @@ def related_questions():
         请基于以下问题，生成{count}个相关的、用户可能会感兴趣的后续问题。
         问题应该多样化，覆盖不同的角度和相关主题。
         只返回问题列表，每个问题一行，前面加上数字编号。
+        问题内容要简洁，不要超过20个字。
         """
         # 调用语言模型，使用系统提示和问题内容
         response = call_language_model(question, system_prompt=system_prompt)
@@ -397,7 +417,8 @@ def upload_files():
         uploaded_files = []
         for file in files:
             if file.filename:
-                filename = secure_filename(file.filename)
+                # 使用自定义函数处理文件名，保留中文字符
+                filename = secure_filename_with_chinese(file.filename)
                 filepath = os.path.join(upload_dir, filename)
                 file.save(filepath)
                 uploaded_files.append(filepath)
@@ -538,6 +559,91 @@ def update_chunk():
     
     except Exception as e:
         print(f"更新分块内容失败: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@api.route('/documents/delete', methods=['POST'])
+def delete_document():
+    """删除指定的文档及其在知识库中的向量和元数据"""
+    try:
+        data = request.get_json()
+        file_path = data.get('file_path')
+        
+        if not file_path:
+            return jsonify({
+                'status': 'error',
+                'message': '未提供文件路径'
+            }), 400
+        
+        # 确保文件路径是绝对路径
+        file_path = os.path.abspath(file_path)
+        
+        # 读取元数据文件
+        metadata_path = rag._get_metadata_path()
+        if not metadata_path.exists():
+            return jsonify({
+                'status': 'error',
+                'message': '元数据文件不存在'
+            }), 404
+        
+        # 读取元数据
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        
+        # 从元数据中过滤掉要删除的文件
+        original_length = len(metadata)
+        filtered_metadata = [doc for doc in metadata if doc.get('file_path') != file_path]
+        removed_count = original_length - len(filtered_metadata)
+        
+        if removed_count == 0:
+            return jsonify({
+                'status': 'error',
+                'message': '未找到指定的文件'
+            }), 404
+        
+        # 保存更新后的元数据
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(filtered_metadata, f, ensure_ascii=False, indent=4)
+        
+        # 更新内存中的元数据和向量
+        # 找出要删除的文档索引
+        doc_indices_to_remove = []
+        for i, doc in enumerate(rag.docs):
+            if doc.get('file_path') == file_path:
+                doc_indices_to_remove.append(i)
+        
+        # 从内存中删除文档
+        rag.docs = [doc for i, doc in enumerate(rag.docs) if i not in doc_indices_to_remove]
+        
+        # 如果有向量数据，也需要更新
+        if rag.doc_vectors is not None and len(rag.doc_vectors) > 0:
+            # 转换为列表操作更容易
+            vectors_list = rag.doc_vectors.tolist()
+            vectors_list = [vec for i, vec in enumerate(vectors_list) if i not in doc_indices_to_remove]
+            # 如果没有剩余向量，设为None，否则转回numpy数组
+            if not vectors_list:
+                rag.doc_vectors = None
+            else:
+                rag.doc_vectors = np.array(vectors_list)
+            
+            # 保存更新后的向量
+            if rag._get_vector_path().exists():
+                np.save(rag._get_vector_path(), rag.doc_vectors)
+        
+        # 删除原始文件
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'成功删除文件及其关联的 {removed_count} 个分块',
+            'removed_chunks': removed_count
+        })
+        
+    except Exception as e:
+        print(f"删除文档失败: {e}")
         return jsonify({
             'status': 'error',
             'message': str(e)
