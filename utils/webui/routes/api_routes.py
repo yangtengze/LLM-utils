@@ -83,7 +83,6 @@ def chat_completions():
     temperature = data.get('temperature', 0.7)
     model_name = data.get('model', configs['ollama']['default_model'])
     system_prompt = data.get('system_prompt', '')
-    chat_id = data.get('chat_id', '')  # 添加会话ID字段
     
     try:
         # 临时更新温度设置
@@ -95,11 +94,6 @@ def chat_completions():
         
         # 恢复原始温度设置
         rag.config['ollama']['temperature'] = original_temp
-        
-        # 如果提供了会话ID，将对话添加到历史记录
-        # 这里假设非RAG对话不需要记录在RAG的历史中
-        if chat_id and chat_id.startswith('rag_') and not system_prompt:
-            rag.add_to_history(message, response)
 
         return jsonify({
             'status': 'success',
@@ -188,7 +182,6 @@ def reference_files():
         reference_files = []
         for doc in relevant_docs:
             file_content = doc.get('chunk_content', '')
-            chunk_summary = doc.get('chunk_summary', '无总结')
 
             file_path = doc.get('file_path', '')
             # 将绝对路径转换为相对于项目根目录的路径
@@ -206,13 +199,12 @@ def reference_files():
                     'file_path': relative_path,
                     'score': score,
                     'file_type': file_ext,
-                    'timestamp': str(doc.get('timestamp', '')),
+                    'timestamp': str(doc.get('timestamp', ''))
                 })
             reference_contents.append({
                 'file_path': relative_path,
                 'score': score,
-                'content': file_content,
-                'chunk_summary': chunk_summary  # 添加文档块标题
+                'content': file_content
             })
         
         return jsonify({
@@ -310,30 +302,14 @@ def get_rag_prompt():
     data = request.get_json()
     message = data.get('message', '')
     is_image = data.get('is_image', False)  # 从请求中获取是否为图片查询的标记
-    use_history = data.get('use_history', True)  # 是否使用对话历史
     
     try:
-        # 生成 RAG 提示，传入是否为图片查询的标记以及是否使用历史记录
-        prompt = rag.generate_prompt(message, is_image=is_image, use_history=use_history)
+        # 生成 RAG 提示，传入是否为图片查询的标记
+        prompt = rag.generate_prompt(message, is_image=is_image)
         
         return jsonify({
             'status': 'success',
             'context': prompt
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-@api.route('/chat/clear_history', methods=['POST'])
-def clear_chat_history():
-    """清空当前对话历史"""
-    try:
-        rag.clear_history()
-        return jsonify({
-            'status': 'success',
-            'message': '对话历史已清空'
         })
     except Exception as e:
         return jsonify({
@@ -492,7 +468,6 @@ def get_document_chunks():
                 # 将文档转换为新的格式
                 chunk_info = {
                     'file_path': doc.get('file_path', ''),
-                    'chunk_summary': doc.get('chunk_summary', ''),
                     'chunk_index': doc.get('chunk_index', 0),
                     'chunk_content': doc.get('chunk_content', ''),
                     'total_chunks': doc.get('total_chunks', '')  # 稍后更新
@@ -527,7 +502,7 @@ def update_chunk():
         file_path = data.get('file_path')
         chunk_index = data.get('chunk_index')
         chunk_content = data.get('chunk_content')
-        chunk_summary = data.get('chunk_summary')
+        
         if not all([file_path, chunk_index is not None, chunk_content is not None]):
             return jsonify({
                 'status': 'error',
@@ -553,7 +528,6 @@ def update_chunk():
         for doc in metadata:
             if doc.get('file_path') == file_path and str(doc.get('chunk_index')) == str(chunk_index):
                 doc['chunk_content'] = chunk_content
-                doc['chunk_summary'] = chunk_summary
                 updated = True
                 break
         
@@ -571,7 +545,6 @@ def update_chunk():
         for doc in rag.docs:
             if doc.get('file_path') == file_path and str(doc.get('chunk_index')) == str(chunk_index):
                 doc['chunk_content'] = chunk_content
-                doc['chunk_summary'] = chunk_summary
                 break
         
         

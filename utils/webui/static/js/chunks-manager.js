@@ -253,9 +253,6 @@ function setupChunksManager() {
     // 渲染分块列表
     function renderChunks(chunks) {
         return chunks.map((chunk, index) => {
-            // 确保chunk_summary存在，如果不存在则显示默认文本
-            const summary = chunk.chunk_summary ? chunk.chunk_summary : '无摘要';
-            
             return `
                 <div class="chunk-item" data-index="${index}">
                     <div class="chunk-header">
@@ -265,9 +262,6 @@ function setupChunksManager() {
                                 <i class="fas fa-chevron-down"></i>
                             </button>
                         </div>
-                    </div>
-                    <div class="chunk-summary">
-                        <span>${summary}</span>
                     </div>
                     <div class="chunk-content">
                         <pre contenteditable="true" class="editable-chunk" data-file-path="${chunk.file_path}" data-chunk-index="${chunk.chunk_index}">${chunk.chunk_content}</pre>
@@ -360,25 +354,14 @@ function setupChunksManager() {
         const chunkItems = document.querySelectorAll('.chunk-item');
         
         chunkItems.forEach(item => {
-            const contentElement = item.querySelector('.chunk-content pre');
-            const summaryElement = item.querySelector('.chunk-summary');
-            
-            // 获取内容文本，确保元素存在
-            const content = contentElement ? contentElement.textContent.toLowerCase() : '';
-            
-            // 获取摘要文本，确保元素存在
-            const summary = summaryElement ? summaryElement.textContent.toLowerCase() : '';
-            
-            if (filterText === '' || content.includes(filterText) || summary.includes(filterText)) {
+            const content = item.querySelector('.chunk-content pre').textContent.toLowerCase();
+            if (filterText === '' || content.includes(filterText)) {
                 item.style.display = '';
                 // 如果包含过滤文本，高亮显示
                 if (filterText !== '') {
                     item.classList.add('expanded');
-                    const toggleIcon = item.querySelector('.chunk-toggle i');
-                    if (toggleIcon) {
-                        toggleIcon.classList.remove('fa-chevron-down');
-                        toggleIcon.classList.add('fa-chevron-up');
-                    }
+                    item.querySelector('.chunk-toggle i').classList.remove('fa-chevron-down');
+                    item.querySelector('.chunk-toggle i').classList.add('fa-chevron-up');
                 }
             } else {
                 item.style.display = 'none';

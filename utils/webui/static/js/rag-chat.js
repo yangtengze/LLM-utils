@@ -158,22 +158,8 @@ function setupRAGChat() {
     }
     
     // 清空对话函数
-    async function clearChatMessages() {
+    function clearChatMessages() {
         clearChat('rag');
-        
-        // 清空RAG系统中的对话历史
-        try {
-            const response = await fetch('/api/chat/clear_history', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            const data = await response.json();
-            console.log('清空对话历史结果:', data);
-        } catch (error) {
-            console.error('清空对话历史失败:', error);
-        }
     }
     
     // 上传文件函数
