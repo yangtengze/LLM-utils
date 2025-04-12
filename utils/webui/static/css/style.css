@@ -1488,6 +1488,31 @@ body {
     word-break: break-word;
 }
 
+.chunk-summary {
+    padding: 0.8rem 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid var(--border-color);
+    color: #555;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.chunk-summary span {
+    display: block;
+    font-style: italic;
+    color: var(--primary-color);
+}
+
+.chunk-item.expanded .chunk-summary {
+    border-bottom-color: var(--secondary-color);
+    background-color: #edf7ff;
+}
+
+.chunk-content {
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
 .related-context-item.expanded .context-content {
     padding: 12px;
     max-height: 300px;

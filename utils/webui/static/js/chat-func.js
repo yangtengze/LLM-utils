@@ -989,9 +989,9 @@ async function sendChatMessage({
                 const contextResponse = await fetch(contextEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        message,
-                        ...additionalData  // 包含额外数据，如 is_image 等
+                    body: JSON.stringify({
+                        message: message,
+                        ...settings.additionalData
                     })
                 });
                 
@@ -1489,7 +1489,20 @@ async function fetchRelatedContexts(question, messageDiv) {
                 // 创建内容区域
                 const contentArea = document.createElement('div');
                 contentArea.className = 'context-content';
-                contentArea.textContent = ctx.content;
+                
+                // 添加摘要（如果有）
+                if (ctx.chunk_summary) {
+                    const summaryElement = document.createElement('div');
+                    summaryElement.className = 'chunk-summary';
+                    summaryElement.innerHTML = `<strong>摘要:</strong> ${ctx.chunk_summary}`;
+                    contentArea.appendChild(summaryElement);
+                }
+                
+                // 添加内容
+                const contentElement = document.createElement('div');
+                contentElement.className = 'chunk-content';
+                contentElement.textContent = ctx.content;
+                contentArea.appendChild(contentElement);
                 
                 // 将标题栏和内容添加到项目中
                 contextItem.appendChild(titleBar);
