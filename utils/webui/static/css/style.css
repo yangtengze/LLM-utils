@@ -667,7 +667,7 @@ body {
 }
 
 .setting-item {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .setting-item label {
@@ -704,6 +704,47 @@ body {
 }
 
 .temperature-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+
+.top_p-slider {
+    flex-grow: 1;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    outline: none;
+}
+
+.top_p-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--secondary-color);
+    border-radius: 50%;
+}
+
+.top_p-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.topk-slider {
+    flex-grow: 1;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    outline: none;
+}
+
+.topk-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--secondary-color);
+    border-radius: 50%;
+}
+
+.topk-slider::-webkit-slider-thumb:hover {
     transform: scale(1.2);
 }
 
@@ -770,7 +811,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-
+    /* width: max-content; */
     margin-bottom: 0.5rem;
     background: #f8f9fa;
     border-radius: 8px;

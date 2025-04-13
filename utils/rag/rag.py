@@ -1,6 +1,6 @@
 from utils.document_loader import CSVLoader, MDLoader, PDFLoader, TXTLoader, DocxLoader, HTMLLoader
 from utils.load_config import configs
-from utils.base_func import parse_response
+from utils.base_func import *
 from typing import List, Dict
 from pathlib import Path
 import numpy as np
@@ -50,7 +50,33 @@ class Rag:
         self.score_threshold = self.config['rag']['retrieval']['score_threshold']
         self.rerank_threshold = self.config['rag']['retrieval']['rerank_score_threshold']
         self.similarity_metric = self.config['rag']['vector_store']['similarity_metric']
+    def _generate_chunk_summary(self, chunk_content: str, max_length: int = 150) -> str:
+        """生成文档块的摘要"""
+        prompt = f"""
+        直接开始用中文总结以下文本内容，仅列核心要点：首先是总结出来的标题，再用符号「•」分项，最后用符号「→」总结。避免任何解释性文字。(不超过{max_length}个字符）
+          
+        文本内容:
+        {chunk_content}
+        """
+        summary = call_language_model(prompt)
+        summary = remove_think_tag(summary)
+        return summary
     
+    def _query_enhance(self, query: str) -> str:
+        """
+        对查询进行增强
+        """
+        prompt = f"""
+        请根据以下查询内容，提取查询关键字，分析你处于第几人称，对查询进行扩展补充： 
+        
+        查询内容:
+        {query}
+
+         不要添加任何解释性文字，仅输出增强后的查询。
+        """
+        enhance_query = call_language_model(prompt)
+        enhance_query = remove_think_tag(enhance_query)
+        return enhance_query
     def get_all_files_in_directory(self) -> List[str]:
         directory_path = Path(self.documents_path)  # 确保这是一个 Path 对象
         return [str(file) for file in directory_path.rglob('*') if file.is_file()]
@@ -91,11 +117,13 @@ class Rag:
                     doc['chunk_index'] = 0
                 if 'chunk_content' not in doc:
                     doc['chunk_content'] = doc.get('content', '')
-            if 'total_chunks' not in doc:
-                # 计算此文件的总块数
-                file_path = doc.get('file_path')
-                same_file_docs = [d for d in self.docs if d.get('file_path') == file_path]
-                doc['total_chunks'] = len(same_file_docs)
+                if 'total_chunks' not in doc:
+                    # 计算此文件的总块数
+                    file_path = doc.get('file_path')
+                    same_file_docs = [d for d in self.docs if d.get('file_path') == file_path]
+                    doc['total_chunks'] = len(same_file_docs)
+                if 'chunk_summary' not in doc:
+                    doc['chunk_summary'] = self._generate_chunk_summary(doc['chunk_content'])
             # 保存元数据
             with open(self._get_metadata_path(), "w", encoding="utf-8") as f:
                 json.dump(self.docs, f, ensure_ascii=False, indent=2)
@@ -200,15 +228,19 @@ class Rag:
                         file_vectors = []
                         for i, chunk in enumerate(tqdm(chunks, desc=f"📄 {Path(file_path).name}", leave=True)):
                             # 存储元数据 - 使用新的格式
+                            chunk = str(chunk)
+                            chunk_summary = self._generate_chunk_summary(chunk)
                             self.docs.append({
                                 "file_path": file_path,
                                 "chunk_index": i,  # 记录块索引
-                                "chunk_content": str(chunk),  # 新增字段以符合格式要求
+                                "chunk_summary": chunk_summary,  # 记录块摘要
+                                "chunk_content": chunk,  # 新增字段以符合格式要求
                                 "total_chunks": total_chunks,  # 记录总块数
-                                "timestamp": time.time()  # 添加时间戳用于版本控制
+                                "timestamp": time.time(),  # 添加时间戳用于版本控制
                             })
                             # 生成向量
-                            file_vectors.append(self.embedding_model.encode(str(chunk)))
+                            chunk = f"{chunk_summary}\n{chunk_summary}\n{chunk}"
+                            file_vectors.append(self.embedding_model.encode(chunk))
                         # 追加向量
                         vectors.extend(file_vectors)
 
@@ -277,10 +309,11 @@ class Rag:
                 for i in pbar:
                     doc = self.docs[i]
                     chunk_content = doc.get('chunk_content', '')
-                    
+                    chunk_summary = doc.get('chunk_summary', '')
+                    chunk = f"{chunk_summary}\n{chunk_summary}\n{chunk_content}"
                     if chunk_content:
                         # 生成新的向量
-                        vector = self.embedding_model.encode(chunk_content)
+                        vector = self.embedding_model.encode(chunk)
                         vectors[i] = vector
                     else:
                         print(f"警告: 文档 {doc.get('file_path')} 没有内容，跳过")
@@ -301,13 +334,13 @@ class Rag:
     
     def retrieve_documents(self, query: str, top_k: int = None, threshold: float = None, rerank_threshold: float = None) -> List[Dict]:
         """
-        检索与查询最相关的文档，先使用embedding模型检索，再使用reranker模型重排序
+        检索与增强查询最相关的文档，先使用embedding模型检索，再使用reranker模型重排序
         
         参数:
             query: 用户查询
             top_k: 返回的文档数量，如果为None则使用配置值
             threshold: 相似度阈值，低于此值的文档将被过滤
-            
+            rerank_threshold: 重排序分数阈值，低于此值的文档将被过滤
         返回:
             相关文档列表，按相似度降序排序
         """
@@ -323,10 +356,10 @@ class Rag:
         if not self.docs or self.doc_vectors is None:
             print("无可用文档")
             return []
+        # 第一阶段：对问题进行增强
 
-        # 第一阶段：使用embedding模型进行初步检索
         # 生成查询向量
-        query_vector = self.embedding_model.encode(query).reshape(1, -1)  # 确保形状是 (1, dim)
+        query_vector = self.embedding_model.encode_queries([query]).reshape(1, -1)  # 确保形状是 (1, dim)
         
         # 计算相似度得分
         if self.similarity_metric == 'cosine':
@@ -355,17 +388,17 @@ class Rag:
                     # 计算此文件的总块数
                     same_file_docs = [d for d in self.docs if d.get('file_path') == doc.get('file_path')]
                     doc['total_chunks'] = len(same_file_docs)
-                    
+                if 'chunk_summary' not in doc:
+                    doc['chunk_summary'] = self._generate_chunk_summary(doc['chunk_content'])
                 initial_results.append(doc)
-        
         if not initial_results:
             print("初步检索未找到相关文档")
             return []
-            
-        # 第二阶段：使用reranker模型进行重排序
+        # 第三阶段：使用reranker模型进行重排序
         pairs = []
         for doc in initial_results:
-            pairs.append((query, doc['chunk_content']))
+            chunk_content = f"{doc['chunk_summary']}\n{doc['chunk_summary']}\n{doc['chunk_content']}"
+            pairs.append((query, chunk_content))
         
         # 调用reranker模型获取重排序分数
         rerank_scores = self.reranker_model.compute_score(pairs)
@@ -433,7 +466,10 @@ class Rag:
         for i, doc in enumerate(relevant_docs):
             prompt += f"""
             文档 {i+1} [来自: {doc['file_path']}]:
-            {doc['chunk_content']}
+
+            [摘要] {doc['chunk_summary']}
+            [补充细节] {doc['chunk_content']}
+            
             相似度得分: {doc['score']:.4f}\n\n
             """
         

@@ -7,6 +7,10 @@ marked.setOptions({
     breaks: true
 });
 
+// 共用的标签变量
+const modelSelect = document.getElementById('model-select');
+const chatMessages = document.getElementById('chat-messages');
+
 // 设置侧边栏功能
 function setupSidebar() {
     const sidebar = document.getElementById('history-sidebar');
@@ -110,10 +114,6 @@ function loadGlobalChatHistory() {
     }
 }
 
-// 共用的标签变量
-const messageInput = document.getElementById('message-input');
-const chatMessages = document.getElementById('chat-messages');
-
 // 共用的添加消息函数
 function addMessage(content, type, chatMode = 'rag') {
     const messageDiv = document.createElement('div');
@@ -199,7 +199,7 @@ function formatLatex(content) {
 }
 
 // 使用Fetch API和ReadableStream从Ollama获取流式响应
-async function streamFromOllama(url, data, contentDiv, callback = null) {
+async function streamFromOllama(url, data, options, contentDiv, callback = null) {
     try {
         // 发送请求获取流式响应
         const response = await fetch(url, {
@@ -209,7 +209,8 @@ async function streamFromOllama(url, data, contentDiv, callback = null) {
             },
             body: JSON.stringify({
                 ...data,
-                stream: true
+                stream: true,
+                options: {...options}
             })
         });
         
@@ -476,7 +477,6 @@ function setupModelSwitching() {
         return;
     }
     
-    const modelSelect = document.getElementById('model-select');
     if (!modelSelect) {
         return;
     }
@@ -947,7 +947,9 @@ async function sendChatMessage({
     endpoint = 'http://localhost:11434/api/chat', // Ollama API 端点
     contextEndpoint = null,    // 获取上下文的端点（用于RAG）
     modelName = null,          // 模型名称
-    temperature = 0.7,         // 温度参数
+    temperature = 0.8,         // 温度参数
+    top_k = 3,                  // TopK参数
+    top_p = 0.9,               // Top_p参数
     systemPrompt = null,       // 系统提示（可选）
     additionalData = {}        // 额外数据参数（可选，如is_image等）
 }) {
@@ -976,13 +978,14 @@ async function sendChatMessage({
         let ollamaData = {
             model: modelName,
             messages: [{ role: "user", content: message }]
+            
         };
-        
-        // 如果有温度参数，添加到请求
-        if (temperature !== null) {
-            ollamaData.temperature = temperature;
+        let ollamaData_options = {
+            temperature: temperature,
+            top_p: top_p,
+            top_k: top_k
         }
-        
+
         // 如果是 RAG 模式且有上下文端点，获取上下文
         if (chatType === 'rag' && contextEndpoint) {
             try {
@@ -991,6 +994,7 @@ async function sendChatMessage({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message,
+                        top_k,
                         ...additionalData  // 包含额外数据，如 is_image 等
                     })
                 });
@@ -1025,6 +1029,7 @@ async function sendChatMessage({
         await streamFromOllama(
             endpoint,
             ollamaData,
+            ollamaData_options,
             contentDiv,
             () => {
                 // 提取标题提示（如果有）
@@ -1761,7 +1766,6 @@ export {
     fetchRelatedQuestions,
     fetchRelatedContexts,
     clearChat,
-    currentChatId,
     setupSidebar,
-    loadGlobalChatHistory
+    loadGlobalChatHistory,
 }; 

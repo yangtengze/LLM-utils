@@ -10,12 +10,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function setupChunksManager() {
     // 获取DOM元素
+    const uploadForm = document.getElementById('upload-form');
+    const fileInput = document.getElementById('file-input');    
     const documentslist = document.getElementById('documents-list');
     const chunksContent = document.getElementById('chunks-content');
     const reloadButton = document.getElementById('reload-chunks');
     const chunkFilter = document.getElementById('chunk-filter');
     const clearFilterButton = document.getElementById('clear-filter');
-    
+
+
+
+    // 上传文件函数
+    async function uploadDocuments(e) {
+        e.preventDefault();
+        const files = fileInput.files;
+        if (!files.length) return;
+        
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append('files', file);
+        }
+        
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.status === 'success') {
+                addMessage('文件上传成功！', 'system');
+                loadDocuments();  // 重新加载文档列表
+            } else {
+                addMessage('文件上传失败：' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('上传文件失败:', error);
+            addMessage('上传文件失败，请重试', 'error');
+        }
+    }
+
     // 加载文档列表
     loadDocumentsList();
     
@@ -39,7 +73,9 @@ function setupChunksManager() {
             
             if (data && Array.isArray(data)) {
                 documentslist.innerHTML = data.map(doc => {
-                    const relativePath = doc.file_path.split('/').slice(-2).join('/');
+                    let relativePath = doc.file_path.split('/').slice(-2).join('/');
+                    relativePath = relativePath.replace('data\\documents\\', '');
+                    relativePath = relativePath.replace('\\', '/');
                     const fileExt = relativePath.split('.').pop().toLowerCase();
                     // 根据文件类型选择不同的图标
                     let iconClass = 'fa-file-alt';
@@ -368,6 +404,8 @@ function setupChunksManager() {
             }
         });
     }
+    uploadForm.addEventListener('submit', uploadDocuments);
+
 }
 
 // 导入公共函数

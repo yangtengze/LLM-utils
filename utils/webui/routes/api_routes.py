@@ -302,10 +302,10 @@ def get_rag_prompt():
     data = request.get_json()
     message = data.get('message', '')
     is_image = data.get('is_image', False)  # 从请求中获取是否为图片查询的标记
-    
+    top_k = data.get('top_k', 3)
     try:
         # 生成 RAG 提示，传入是否为图片查询的标记
-        prompt = rag.generate_prompt(message, is_image=is_image)
+        prompt = rag.generate_prompt(message, is_image=is_image, top_k=top_k)
         
         return jsonify({
             'status': 'success',
@@ -647,5 +647,31 @@ def delete_document():
         return jsonify({
             'status': 'error',
             'message': str(e)
+        }), 500
+
+@api.route('/documents/open_folder', methods=['POST'])
+def open_documents_folder():
+    """打开文档文件夹"""
+    try:
+        document_path = os.path.abspath(rag.documents_path)
+        
+        # 检查操作系统类型并使用适当的命令打开文件夹
+        if os.name == 'nt':  # Windows
+            os.startfile(document_path)
+        elif os.name == 'posix':  # macOS 或 Linux
+            import subprocess
+            if os.uname().sysname == 'Darwin':  # macOS
+                subprocess.call(['open', document_path])
+            else:  # Linux
+                subprocess.call(['xdg-open', document_path])
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'已打开文件夹: {document_path}'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'打开文件夹失败: {str(e)}'
         }), 500
 

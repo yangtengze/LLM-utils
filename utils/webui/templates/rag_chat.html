@@ -5,17 +5,27 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
-        <div class="upload-section">
-            <h3>上传文档</h3>
-            <form id="upload-form" class="upload-form">
-                <input type="file" id="file-input" multiple accept=".txt,.pdf,.docx,.md,.csv,.html,'' " class="file-input">
-                <button type="submit" class="upload-button">
-                    <i class="fas fa-upload"></i> 上传
-                </button>
-            </form>
+        <div class="settings-section">
+            <h3>对话设置</h3>
+            <div class="setting-item">
+                <label for="topk-slider">TopK</label>
+                <div class="slider-container">
+                    <input type="range" 
+                           id="topk-slider" 
+                           min="1" 
+                           max="10" 
+                           step="1" 
+                           value="3"
+                           class="topk-slider">
+                    <span id="topk-value">3</span>
+                </div>
+                <p class="setting-description">
+                    设置返回结果数量。
+                </p>
+            </div>
         </div>
         <div class="documents-section">
-            <h3>已加载文档</h3>
+            <h3 class="document-folder-link" style="cursor: pointer;">预览文档->文档文件夹<-</h3>
             <div id="documents-list" class="documents-list">
                 <!-- 文档列表将通过 JavaScript 动态加载 -->
             </div>

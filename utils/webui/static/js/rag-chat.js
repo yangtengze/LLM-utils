@@ -8,15 +8,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function setupRAGChat() {
     // 获取DOM元素
-    const chatMessages = document.getElementById('chat-messages');
     const messageInput = document.getElementById('message-input');
     const sendButton = document.getElementById('send-button');
     const clearButton = document.getElementById('clear-button');
-    const uploadForm = document.getElementById('upload-form');
-    const fileInput = document.getElementById('file-input');
     const documentsList = document.getElementById('documents-list');
-    const modelSelect = document.getElementById('model-select');
-    
+    const topkSlider = document.getElementById('topk-slider');
+    const topkValue = document.getElementById('topk-value');
+
+
     // 图片OCR相关元素
     const imageUploadInput = document.getElementById('chat-image-upload');
     const imagePreviewContainer = document.getElementById('image-preview-container');
@@ -24,9 +23,13 @@ function setupRAGChat() {
     const removeImageBtn = document.getElementById('remove-image-btn');
     const ocrStatus = document.getElementById('ocr-status');
     
-    // 存储当前上传的图片
+    let currentTopk = 3;
     let currentUploadedImage = null;
-    
+    topkSlider.addEventListener('input', (e) => {
+        currentTopk = parseInt(e.target.value);
+        topkValue.textContent = currentTopk;
+    });
+
     // 加载模型配置
     loadModelConfig();
     
@@ -91,6 +94,7 @@ function setupRAGChat() {
                 const formData = new FormData();
                 formData.append('image', currentUploadedImage);
                 formData.append('message', message); // 将用户输入的问题也一起发送
+                formData.append('top_k', currentTopk);
                 
                 // 显示用户消息（包含图片）
                 const userMessageDiv = addMessage(message, 'user');
@@ -117,7 +121,7 @@ function setupRAGChat() {
                         loadingMessage.remove();
                         console.log(ocrResult);
                         // 显示OCR结果和AI回答
-                        const combined_prompt = ocrResult.combined_prompt;
+                        const combined_prompt = ocrResult.ocr_text;
                         
                         // 为图像消息设置真实提示作为数据属性，用于历史标题
                         userMessageDiv.dataset.actualPrompt = combined_prompt;
@@ -127,9 +131,10 @@ function setupRAGChat() {
                             message: combined_prompt,
                             chatType: 'rag',
                             contextEndpoint: '/api/chat/rag/prompt',
+                            top_k: currentTopk,
                             additionalData: { 
-                                is_image: true,
-                                titlePrompt: combined_prompt  // 传递给标题使用
+                                // is_image: true,
+                                titlePrompt: combined_prompt,
                             }
                         })
                         // 清除上传的图片
@@ -149,7 +154,8 @@ function setupRAGChat() {
                 await sendChatMessage({
                     message: message,
                     chatType: 'rag',
-                    contextEndpoint: '/api/chat/rag/prompt'
+                    contextEndpoint: '/api/chat/rag/prompt',
+                    top_k: currentTopk
                 });
             }
         } catch (error) {
@@ -162,35 +168,6 @@ function setupRAGChat() {
         clearChat('rag');
     }
     
-    // 上传文件函数
-    async function uploadDocuments(e) {
-        e.preventDefault();
-        const files = fileInput.files;
-        if (!files.length) return;
-        
-        const formData = new FormData();
-        for (let file of files) {
-            formData.append('files', file);
-        }
-        
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            if (data.status === 'success') {
-                addMessage('文件上传成功！', 'system');
-                loadDocuments();  // 重新加载文档列表
-            } else {
-                addMessage('文件上传失败：' + data.message, 'error');
-            }
-        } catch (error) {
-            console.error('上传文件失败:', error);
-            addMessage('上传文件失败，请重试', 'error');
-        }
-    }
     
     // 加载文档列表
     async function loadDocuments() {
@@ -199,7 +176,9 @@ function setupRAGChat() {
             const data = await response.json();
             if (data && Array.isArray(data)) {
                 documentsList.innerHTML = data.map(doc => {
-                    const relativePath = doc.file_path.split('/').slice(-2).join('/');
+                    let relativePath = doc.file_path.split('/').slice(-2).join('/');
+                    relativePath = relativePath.replace('data\\documents\\', '');
+                    relativePath = relativePath.replace('\\', '/');
                     const fileExt = relativePath.split('.').pop().toLowerCase();
                     // 根据文件类型选择不同的图标
                     let iconClass = 'fa-file-alt';
@@ -250,6 +229,24 @@ function setupRAGChat() {
     
     // 设置文档预览功能
     function setupDocumentPreviews() {
+        // 添加文档文件夹链接点击事件
+        document.querySelector('.document-folder-link').addEventListener('click', () => {
+            // 发送请求打开文档文件夹
+            fetch('/api/documents/open_folder', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    console.error('打开文件夹失败:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('请求打开文件夹失败:', error);
+            });
+        });
+
+        // 文档项点击事件处理
         document.querySelectorAll('.document-item').forEach(documentItem => {
             documentItem.addEventListener('click', async (e) => {
                 const filePath = documentItem.dataset.path;
@@ -458,7 +455,6 @@ function setupRAGChat() {
     // 添加事件监听器
     sendButton.addEventListener('click', sendMessage);
     clearButton.addEventListener('click', clearChatMessages);
-    uploadForm.addEventListener('submit', uploadDocuments);
     messageInput.addEventListener('input', autoResizeTextarea);
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -520,5 +516,4 @@ import {
     sendChatMessage, 
     clearChat,
     setupSidebar,
-    currentChatId
 } from '/static/js/chat-func.js'; 

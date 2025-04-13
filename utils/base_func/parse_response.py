@@ -1,5 +1,5 @@
 import json
-
+import re
 def parse_response(response, stream: bool) -> str:
     """
     解析 LLM 的响应
@@ -39,3 +39,9 @@ def parse_response(response, stream: bool) -> str:
     except Exception as e:
         print(f"解析响应失败: {str(e)}")
         return str(response.content)
+    
+def remove_think_tag(text: str) -> str:
+    """
+    移除文本中的<think>标签及其内容
+    """
+    return re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()

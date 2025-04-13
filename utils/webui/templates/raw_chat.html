@@ -5,7 +5,6 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
-        
         <div class="settings-section">
             <h3>对话设置</h3>
             <div class="setting-item">
@@ -16,9 +15,35 @@
                            min="0" 
                            max="2" 
                            step="0.1" 
-                           value="0.7"
+                           value="0.8"
                            class="temperature-slider">
-                    <span id="temperature-value">0.7</span>
+                    <span id="temperature-value">0.8</span>
+                </div>
+                <p class="setting-description">
+                    调整值越高，回答越具有创造性；值越低，回答越保守。
+                </p>
+            </div>
+            <div class="setting-item">
+                <label for="top_p-slider">Top_p</label>
+                <div class="slider-container">
+                    <input type="range" 
+                           id="top_p-slider" 
+                           min="0" 
+                           max="2" 
+                           step="0.1"
+                           value="0.9"
+                           class="top_p-slider">
+                    <span id="top_p-value">0.9</span>
+                </div>
+                <p class="setting-description">
+                    调整值越高，回答越具有创造性；值越低，回答越保守。
+                </p>
+            </div>
+            <div class="setting-item">
+                <label for="topk-slider">Top_k</label>
+                <div class="slider-container">
+                    <input type="range" id="topk-slider" min="10" max="40" step="5" value="20" class="topk-slider">
+                    <span id="topk-value">20</span>
                 </div>
                 <p class="setting-description">
                     调整值越高，回答越具有创造性；值越低，回答越保守。

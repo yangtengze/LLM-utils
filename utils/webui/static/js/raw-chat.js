@@ -8,14 +8,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function setupRawChat() {
     // 获取DOM元素
-    const chatMessages = document.getElementById('chat-messages');
     const messageInput = document.getElementById('message-input');
     const sendButton = document.getElementById('send-button');
     const clearButton = document.getElementById('clear-button');
     const temperatureSlider = document.getElementById('temperature-slider');
     const temperatureValue = document.getElementById('temperature-value');
-    const modelSelect = document.getElementById('model-select');
-    
+    const top_p_slider = document.getElementById('top_p-slider');
+    const top_p_value = document.getElementById('top_p-value');
+    const topk_slider = document.getElementById('topk-slider');
+    const topk_value = document.getElementById('topk-value');
+
     // 图片OCR相关元素
     const imageUploadInput = document.getElementById('chat-image-upload');
     const imagePreviewContainer = document.getElementById('image-preview-container');
@@ -23,9 +25,11 @@ function setupRawChat() {
     const removeImageBtn = document.getElementById('remove-image-btn');
     const ocrStatus = document.getElementById('ocr-status');
     
-    // 存储当前上传的图片
     let currentUploadedImage = null;
-    
+    let currentTop_p = 0.9;
+    let currentTemperature = 0.8;
+    let currentTopk = 20;
+
     // 处理图片上传
     imageUploadInput.addEventListener('change', handleImageUpload);
     removeImageBtn.addEventListener('click', removeUploadedImage);
@@ -74,14 +78,6 @@ function setupRawChat() {
     // 设置模型切换
     setupModelSwitching();
     
-    // 设置温度滑块
-    let currentTemperature = 0.7;
-    
-    // 更新温度值显示
-    temperatureSlider.addEventListener('input', (e) => {
-        currentTemperature = parseFloat(e.target.value);
-        temperatureValue.textContent = currentTemperature.toFixed(1);
-    });
     
     // 发送消息函数
     async function sendMessage() {
@@ -122,7 +118,8 @@ function setupRawChat() {
                         loadingMessage.remove();
                         console.log(ocrResult);
                         // 显示OCR结果和AI回答
-                        const combined_prompt = ocrResult.combined_prompt;
+                        // const combined_prompt = ocrResult.combined_prompt;
+                        const combined_prompt = ocrResult.ocr_text;
                         
                         // 为图像消息设置真实提示作为数据属性，用于历史标题
                         userMessageDiv.dataset.actualPrompt = combined_prompt;
@@ -132,6 +129,8 @@ function setupRawChat() {
                             message: combined_prompt,
                             chatType: 'raw',
                             temperature: currentTemperature,
+                            top_p: currentTop_p,
+                            top_k: currentTopk,
                             fallbackEndpoint: '/api/chat_completions',
                             additionalData: { 
                                 is_image: true,
@@ -157,6 +156,8 @@ function setupRawChat() {
                     message: message,
                     chatType: 'raw',
                     temperature: currentTemperature,
+                    top_p: currentTop_p,
+                    top_k: currentTopk,
                     fallbackEndpoint: '/api/chat_completions'
                 });
             }
@@ -220,6 +221,22 @@ function setupRawChat() {
             item.classList.remove('active');
         });
     }
+
+    temperatureSlider.addEventListener('input', (e) => {
+        currentTemperature = parseFloat(e.target.value);
+        temperatureValue.textContent = currentTemperature.toFixed(1);
+    });
+
+    top_p_slider.addEventListener('input', (e) => {
+        currentTop_p = parseFloat(e.target.value);
+        top_p_value.textContent = currentTop_p.toFixed(1);
+    });
+
+    topk_slider.addEventListener('input', (e) => {
+        currentTopk = parseInt(e.target.value);
+        topk_value.textContent = currentTopk;
+    });
+
 }
 
 // 从chat-func.js导入必要的函数
@@ -233,6 +250,5 @@ import {
     sendChatMessage, 
     clearChat,
     setupSidebar,
-    currentChatId,
-    addLoadingMessage
+    addLoadingMessage,
 } from '/static/js/chat-func.js'; 

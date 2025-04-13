@@ -5,8 +5,17 @@
 {% block content %}
 <div class="chunks-container">
     <div class="chunks-sidebar">
+        <div class="upload-section">
+            <h3>上传文档</h3>
+            <form id="upload-form" class="upload-form">
+                <input type="file" id="file-input" multiple accept=".txt,.pdf,.docx,.md,.csv,.html,'' " class="file-input">
+                <button type="submit" class="upload-button">
+                    <i class="fas fa-upload"></i> 上传
+                </button>
+            </form>
+        </div>
         <div class="documents-section">
-            <h3>已加载文档</h3>
+            <h3 class="document-folder-link" style="cursor: pointer;">已加载文档->文档文件夹<-</h3>
             <div id="documents-list" class="documents-list">
                 <!-- 文档列表将通过 JavaScript 动态加载 -->
             </div>
