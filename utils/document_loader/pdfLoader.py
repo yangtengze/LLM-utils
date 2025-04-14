@@ -47,33 +47,42 @@ class PDFLoader:
         :return: 提取的文本内容
         """
         try:
-            # print(f"处理图片: 第{page_num}页 第{img_index}张 (尺寸: {width}x{height})")
-            # 将图片字节数据转换为PIL Image对象
-            pil_image = Image.open(io.BytesIO(image_data))
+            # # 使用PaddleOCR进行识别
+            result = self.ocr_engine.ocr(image_data, cls=False)
+            # print(result)
+            img_content = ''
+            for idx in range(len(result)):
+                res = result[idx]
+                for line in res:
+                    img_content += (f'{line[1][0]}') + '\n'
+
+            # # 使用PPStructure进行识别
+            # # print(f"处理图片: 第{page_num}页 第{img_index}张 (尺寸: {width}x{height})")
+            # # 将图片字节数据转换为PIL Image对象
+            # pil_image = Image.open(io.BytesIO(image_data))
             
-            # 可以选择保存图片用于调试
-            # pil_image.save(f'debug_image_page{page_num}_img{img_index}.jpeg')
+            # # 可以选择保存图片用于调试
+            # # pil_image.save(f'debug_image_page{page_num}_img{img_index}.jpeg')
             
-            # 转换为numpy数组供PaddleOCR处理
-            image_array = np.array(pil_image)
+            # # 转换为numpy数组供PaddleOCR处理
+            # image_array = np.array(pil_image)
             
-            # 使用PaddleOCR进行识别
-            result = self.ocr_engine(image_array)
+            # result = self.ocr_engine(image_array)
             
-            # 处理识别结果
-            img_content = []
-            for item in result:
-                if item.get('type') == 'table':
-                    # 处理表格
-                    img_content.append(f"{item['res'].get('html', '')}")
-                else:
-                    # 处理文本
-                    text_content = ""
-                    for content in item.get('res', []):
-                        if isinstance(content, dict) and 'text' in content:
-                            text_content += content["text"] + " "
-                    if text_content:
-                        img_content.append(f"{text_content}")
+            # # 处理识别结果
+            # img_content = []
+            # for item in result:
+            #     if item.get('type') == 'table':
+            #         # 处理表格
+            #         img_content.append(f"{item['res'].get('html', '')}")
+            #     else:
+            #         # 处理文本
+            #         text_content = ""
+            #         for content in item.get('res', []):
+            #             if isinstance(content, dict) and 'text' in content:
+            #                 text_content += content["text"] + " "
+            #         if text_content:
+            #             img_content.append(f"{text_content}")
             
             # 添加图片尺寸信息
             img_info = f"[图片内容 {width}x{height}]"
@@ -225,7 +234,7 @@ class PDFLoader:
 
 if __name__ == '__main__':
     loader = PDFLoader()
-    filepath = 'data/documents/333.pdf'
+    filepath = 'data/documents/222.pdf'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         # if i == 1:

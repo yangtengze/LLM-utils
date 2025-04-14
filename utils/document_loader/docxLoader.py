@@ -110,97 +110,47 @@ class DocxLoader:
             except KeyError:
                 # 如果找不到关系ID对应的部分，尝试使用旧方法
                 return None
-            
-            # 使用PIL打开图片
+            result = self.ocr_engine.ocr(img_bytes, cls=False)
+            # print(result)
+            img_content = ''
+            for idx in range(len(result)):
+                res = result[idx]
+                for line in res:
+                    img_content += (f'{line[1][0]}') + '\n'
+
+
+            # # 使用PIL打开图片
             pil_image = Image.open(io.BytesIO(img_bytes))
             width, height = pil_image.size
             
-            print(f"处理图片: 位于{location}的第{img_index+1}张图片 (尺寸: {width}x{height})")
+            # print(f"处理图片: 位于{location}的第{img_index+1}张图片 (尺寸: {width}x{height})")
             
-            # 转换为numpy数组供OCR处理
-            image_array = np.array(pil_image)
+            # # 转换为numpy数组供OCR处理
+            # image_array = np.array(pil_image)
             
-            # 使用OCR进行识别
-            result = self.ocr_engine(image_array)
+            # # 使用OCR进行识别
+            # result = self.ocr_engine(image_array)
             
-            # 处理识别结果
-            img_content = []
-            for item in result:
-                if item.get('type') == 'table':
-                    # 处理表格
-                    img_content.append(f"{item['res'].get('html', '')}")
-                else:
-                    # 处理文本
-                    text_content = ""
-                    for content in item.get('res', []):
-                        if isinstance(content, dict) and 'text' in content:
-                            text_content += content["text"] + " "
-                    if text_content:
-                        img_content.append(f"{text_content}")
+            # # 处理识别结果
+            # img_content = []
+            # for item in result:
+            #     if item.get('type') == 'table':
+            #         # 处理表格
+            #         img_content.append(f"{item['res'].get('html', '')}")
+            #     else:
+            #         # 处理文本
+            #         text_content = ""
+            #         for content in item.get('res', []):
+            #             if isinstance(content, dict) and 'text' in content:
+            #                 text_content += content["text"] + " "
+            #         if text_content:
+            #             img_content.append(f"{text_content}")
             
             # 添加图片尺寸信息
             img_info = f"[图片内容 {width}x{height}]"
             
             if img_content:
-                return f"{img_info}\n" + "\n".join(img_content)
-            else:
-                return f"{img_info} [未能识别图片中的文本内容]"
-            
-        except Exception as e:
-            print(f"处理DOCX图片时出错 (图片 {img_index+1}): {str(e)}")
-            return f"[图片内容] [处理图片时出错: {str(e)}]"
-
-    def _process_image(self, doc, img_element, img_index, location="文档"):
-        """
-        处理Word文档中的图片 (旧方法，保留用于兼容)
-        :param doc: 文档对象
-        :param img_element: 图片元素
-        :param img_index: 图片索引
-        :param location: 图片所在位置描述
-        :return: 处理后的图片数据（OCR文本）
-        """
-        try:
-            # 获取图片ID
-            img_id = img_element.get('.//a:blip/@r:embed')
-            if not img_id:
-                return None
-            
-            # 通过关系ID获取图片数据
-            img_part = doc.part.related_parts[img_id]
-            img_bytes = img_part.blob
-            
-            # 使用PIL打开图片
-            pil_image = Image.open(io.BytesIO(img_bytes))
-            width, height = pil_image.size
-            
-            print(f"处理图片: 位于{location}的第{img_index+1}张图片 (尺寸: {width}x{height})")
-            
-            # 转换为numpy数组供OCR处理
-            image_array = np.array(pil_image)
-            
-            # 使用OCR进行识别
-            result = self.ocr_engine(image_array)
-            
-            # 处理识别结果
-            img_content = []
-            for item in result:
-                if item.get('type') == 'table':
-                    # 处理表格
-                    img_content.append(f"{item['res'].get('html', '')}")
-                else:
-                    # 处理文本
-                    text_content = ""
-                    for content in item.get('res', []):
-                        if isinstance(content, dict) and 'text' in content:
-                            text_content += content["text"] + " "
-                    if text_content:
-                        img_content.append(f"{text_content}")
-            
-            # 添加图片信息
-            img_info = f"[图片内容 {width}x{height}]"
-            
-            if img_content:
-                return f"{img_info}\n" + "\n".join(img_content)
+                return f"{img_info}\n" + img_content
             else:
                 return f"{img_info} [未能识别图片中的文本内容]"
             
@@ -264,4 +214,4 @@ if __name__ == '__main__':
     filepath = 'data/documents/实验四3 建模.docx'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
-        print(f"Chunk {i + 1}: {type(chunk)}")
+        print(f"Chunk {i + 1}: {(chunk)}")

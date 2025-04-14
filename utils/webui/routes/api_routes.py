@@ -250,18 +250,24 @@ def ocr_process():
         try:
             # 使用OCR引擎识别图片文本
             ocr_engine = get_ocr_engine()
-            img = cv2.imread(image_path)
-            result = ocr_engine(img)
+            result = ocr_engine.ocr(image_path, cls=False)
+
             ocr_text = ''
-            for line in result:
-                line.pop('img')
-                if line['type'] != 'table':
-                    text = ''
-                    for content in line['res']:
-                        text += content["text"]
-                    ocr_text += (f'{text}') + '\n'
-                else:
-                    ocr_text += (f'{line["res"]["html"]}') + '\n'
+            for idx in range(len(result)):
+                res = result[idx]
+                for line in res:
+                    ocr_text += (f'{line[1][0]}') + '\n'
+            
+            # ocr_text = ''
+            # for line in result:
+            #     line.pop('img')
+            #     if line['type'] != 'table':
+            #         text = ''
+            #         for content in line['res']:
+            #             text += content["text"]
+            #         ocr_text += (f'{text}') + '\n'
+            #     else:
+            #         ocr_text += (f'{line["res"]["html"]}') + '\n'
             
             # 组合用户消息和OCR识别结果
             combined_prompt = f"""以下是一张图片的OCR文本识别结果:
