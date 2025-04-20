@@ -25,8 +25,14 @@ function setupRAGChat() {
     
     let currentTopk = 3;
     let currentUploadedImage = null;
+    
+    // 将 currentTopk 设置为全局变量，可以被其他模块访问
+    window.currentTopk = currentTopk;
+    
     topkSlider.addEventListener('input', (e) => {
         currentTopk = parseInt(e.target.value);
+        // 同步更新全局变量
+        window.currentTopk = currentTopk;
         topkValue.textContent = currentTopk;
     });
 
@@ -176,39 +182,10 @@ function setupRAGChat() {
             const data = await response.json();
             if (data && Array.isArray(data)) {
                 documentsList.innerHTML = data.map(doc => {
-                    let relativePath = doc.file_path.split('/').slice(-2).join('/');
-                    relativePath = relativePath.replace('data\\documents\\', '');
-                    relativePath = relativePath.replace('\\', '/');
+                    let relativePath = normalizeFilePath(doc.file_path);
                     const fileExt = relativePath.split('.').pop().toLowerCase();
-                    // 根据文件类型选择不同的图标
-                    let iconClass = 'fa-file-alt';
-                    switch(fileExt) {
-                        case 'pdf':
-                            iconClass = 'fa-file-pdf';
-                            break;
-                        case 'docx':
-                        case 'doc':
-                            iconClass = 'fa-file-word';
-                            break;
-                        case 'txt':
-                            iconClass = 'fa-file-alt';
-                            break;
-                        case 'md':
-                            iconClass = 'fab fa-markdown'; 
-                            break;
-                        case 'csv':
-                            iconClass = 'fa-file-csv';
-                            break;
-                        case 'html':
-                            iconClass = 'fa-file-code';
-                            break;
-                        case 'json':
-                            iconClass = 'fa-file-json';
-                            break;
-                        case 'jsonl':
-                            iconClass = 'fa-file-jsonl';
-                            break;
-                    }
+                    // 使用通用函数获取文件图标
+                    const iconClass = getFileIconClass(fileExt);
                     
                     return `
                         <div class="document-item" data-path="${doc.file_path}">
@@ -516,4 +493,6 @@ import {
     sendChatMessage, 
     clearChat,
     setupSidebar,
+    getFileIconClass,
+    normalizeFilePath,
 } from '/static/js/chat-func.js'; 

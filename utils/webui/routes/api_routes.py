@@ -4,6 +4,7 @@ from utils.load_config import configs
 from werkzeug.utils import secure_filename
 from utils.documents_preview import *
 from utils.ocr_manager import get_ocr_engine
+from utils.ppstructure_manager import get_ppstructure_engine
 from utils.base_func import *
 import os
 import re
@@ -12,6 +13,7 @@ import cv2
 import uuid
 import urllib.parse
 import numpy as np
+import time
 api = Blueprint('api', __name__)
 
 # 直接初始化 Rag 实例
@@ -158,7 +160,7 @@ def reference_files():
     data = request.get_json()
     question_id = data.get('question_id')
     question = data.get('question', '')
-    
+    top_k = data.get('top_k', 3)
     try:
         # 如果有问题ID但没有问题内容，尝试从某处获取问题内容
         if question_id and not question:
@@ -173,17 +175,33 @@ def reference_files():
                 'message': '未提供有效的问题内容'
             }), 400
         
-        # 使用 RAG 系统进行文档检索
-        # 获取与问题最相关的文档
-        relevant_docs = rag.retrieve_documents(question)
+        # 优先尝试获取最近一次检索的结果（使用新的last_retrieval机制）
+        relevant_docs = []
         
-        # 处理结果，提取文件信息并确保可序列化
+        # 检查是否可以重用最近一次的检索结果
+        if hasattr(rag, 'last_retrieval') and rag.last_retrieval:
+            last_query = rag.last_retrieval.get('query')
+            last_top_k = rag.last_retrieval.get('top_k')
+            
+            # 如果是相同的查询，并且之前的top_k不小于现在请求的top_k
+            if last_query == question and last_top_k >= top_k:
+                relevant_docs = rag.last_retrieval.get('results', [])[:top_k]
+                print(f"使用最近一次检索的缓存结果: {question[:30]}...")
+        
+        # 如果没有找到缓存结果，执行正常的检索流程
+        if not relevant_docs:
+            # 执行增强和检索 - 但避免重复执行
+            enhanced_question = rag._query_enhance(question)
+            relevant_docs = rag.retrieve_documents(enhanced_question, top_k=top_k)
+        
+        # 优化处理结果 - 使用集合更高效地跟踪已处理的文件
         reference_contents = []
-        reference_files = []
+        reference_files = set()  # 使用集合避免重复
+        
         for doc in relevant_docs:
             file_content = doc.get('chunk_content', '')
-
             file_path = doc.get('file_path', '')
+            
             # 将绝对路径转换为相对于项目根目录的路径
             relative_path = os.path.relpath(file_path, os.getcwd()) if file_path else ''
             
@@ -193,25 +211,38 @@ def reference_files():
             # 获取文件类型
             file_ext = os.path.splitext(file_path)[1].lower().lstrip('.')
             
-            # 检查这个文件是否已经在列表中
-            if not any(ref['file_path'] == relative_path for ref in reference_files):
-                reference_files.append({
-                    'file_path': relative_path,
-                    'score': score,
-                    'file_type': file_ext,
-                    'timestamp': str(doc.get('timestamp', ''))
-                })
+            # 添加到内容列表
             reference_contents.append({
                 'file_path': relative_path,
                 'score': score,
                 'content': file_content
             })
+            
+            # 检查这个文件是否已经处理过（使用集合查找更高效）
+            if relative_path not in reference_files:
+                reference_files.add(relative_path)
+        
+        # 将集合转换为列表，便于JSON序列化
+        reference_files_list = [
+            {
+                'file_path': path,
+                'score': next((doc.get('score', 0) for doc in relevant_docs 
+                              if os.path.relpath(doc.get('file_path', ''), os.getcwd()) == path), 0),
+                'file_type': os.path.splitext(path)[1].lower().lstrip('.'),
+                'timestamp': next((doc.get('timestamp', '') for doc in relevant_docs 
+                                  if os.path.relpath(doc.get('file_path', ''), os.getcwd()) == path), '')
+            }
+            for path in reference_files
+        ]
+        
+        # 按相似度分数排序
+        reference_files_list.sort(key=lambda x: x['score'], reverse=True)
         
         return jsonify({
             'status': 'success',
             'question': question,
             'question_id': question_id,
-            'reference_files': reference_files,
+            'reference_files': reference_files_list,
             'reference_contents': reference_contents
         })
     
@@ -310,12 +341,20 @@ def get_rag_prompt():
     is_image = data.get('is_image', False)  # 从请求中获取是否为图片查询的标记
     top_k = data.get('top_k', 3)
     try:
-        # 生成 RAG 提示，传入是否为图片查询的标记
-        prompt = rag.generate_prompt(message, is_image=is_image, top_k=top_k)
+        # 生成 RAG 提示
+        start_time = time.time()
+        
+        # 使用增强的缓存机制
+        enhanced_question = rag._query_enhance(message)
+        prompt = rag.generate_prompt(enhanced_question, is_image=is_image, top_k=top_k)
+        
+        end_time = time.time()
+        processing_time = end_time - start_time
         
         return jsonify({
             'status': 'success',
-            'context': prompt
+            'context': prompt,
+            'processing_time': processing_time  # 返回处理时间，用于监控性能
         })
     except Exception as e:
         return jsonify({
@@ -534,6 +573,8 @@ def update_chunk():
         for doc in metadata:
             if doc.get('file_path') == file_path and str(doc.get('chunk_index')) == str(chunk_index):
                 doc['chunk_content'] = chunk_content
+                doc['chunk_summary'] = rag._generate_chunk_summary(chunk_content)
+                tmp_chunk_summary = doc['chunk_summary']
                 updated = True
                 break
         
@@ -551,6 +592,7 @@ def update_chunk():
         for doc in rag.docs:
             if doc.get('file_path') == file_path and str(doc.get('chunk_index')) == str(chunk_index):
                 doc['chunk_content'] = chunk_content
+                doc['chunk_summary'] = tmp_chunk_summary
                 break
         
         

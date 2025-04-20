@@ -6,7 +6,8 @@ import tempfile
 import numpy as np
 import io
 from utils.load_config import configs
-from utils.ocr_manager import get_ocr_engine
+# from utils.ocr_manager import get_ocr_engine
+from utils.ppstructure_manager import get_ppstructure_engine
 from PIL import Image, ImageFile
 from tqdm import tqdm
 fitz.TOOLS.mupdf_display_errors(False)
@@ -23,8 +24,8 @@ class PDFLoader:
         self.chunk_size = self.config['rag']['document_loader']['chunk_size']
         self.chunk_overlap = self.config['rag']['document_loader']['chunk_overlap']
         # 使用共享的 OCR 引擎而不是创建新实例
-        self.ocr_engine = get_ocr_engine()
-
+        # self.ocr_engine = get_ocr_engine()
+        self.ppstructure_engine = get_ppstructure_engine()
     def load(self, file_path: str) -> List[str]:
         """
         加载并分块PDF文件
@@ -47,42 +48,42 @@ class PDFLoader:
         :return: 提取的文本内容
         """
         try:
-            # # 使用PaddleOCR进行识别
-            result = self.ocr_engine.ocr(image_data, cls=False)
-            # print(result)
-            img_content = ''
-            for idx in range(len(result)):
-                res = result[idx]
-                for line in res:
-                    img_content += (f'{line[1][0]}') + '\n'
+            # # # 使用PaddleOCR进行识别
+            # result = self.ocr_engine.ocr(image_data, cls=False)
+            # # print(result)
+            # img_content = ''
+            # for idx in range(len(result)):
+            #     res = result[idx]
+            #     for line in res:
+            #         img_content += (f'{line[1][0]}') + '\n'
 
-            # # 使用PPStructure进行识别
-            # # print(f"处理图片: 第{page_num}页 第{img_index}张 (尺寸: {width}x{height})")
-            # # 将图片字节数据转换为PIL Image对象
-            # pil_image = Image.open(io.BytesIO(image_data))
+            # 使用PPStructure进行识别
+            # print(f"处理图片: 第{page_num}页 第{img_index}张 (尺寸: {width}x{height})")
+            # 将图片字节数据转换为PIL Image对象
+            pil_image = Image.open(io.BytesIO(image_data))
             
-            # # 可以选择保存图片用于调试
-            # # pil_image.save(f'debug_image_page{page_num}_img{img_index}.jpeg')
+            # 可以选择保存图片用于调试
+            pil_image.save(f'debug_image_page{page_num}_img{img_index}.jpeg')
             
-            # # 转换为numpy数组供PaddleOCR处理
-            # image_array = np.array(pil_image)
+            # 转换为numpy数组供PaddleOCR处理
+            image_array = np.array(pil_image)
             
-            # result = self.ocr_engine(image_array)
+            result = self.ppstructure_engine(image_array)
             
-            # # 处理识别结果
-            # img_content = []
-            # for item in result:
-            #     if item.get('type') == 'table':
-            #         # 处理表格
-            #         img_content.append(f"{item['res'].get('html', '')}")
-            #     else:
-            #         # 处理文本
-            #         text_content = ""
-            #         for content in item.get('res', []):
-            #             if isinstance(content, dict) and 'text' in content:
-            #                 text_content += content["text"] + " "
-            #         if text_content:
-            #             img_content.append(f"{text_content}")
+            # 处理识别结果
+            img_content = []
+            for item in result:
+                if item.get('type') == 'table':
+                    # 处理表格
+                    img_content.append(f"{item['res'].get('html', '')}")
+                else:
+                    # 处理文本
+                    text_content = ""
+                    for content in item.get('res', []):
+                        if isinstance(content, dict) and 'text' in content:
+                            text_content += content["text"] + " "
+                    if text_content:
+                        img_content.append(f"{text_content}")
             
             # 添加图片尺寸信息
             img_info = f"[图片内容 {width}x{height}]"
@@ -110,11 +111,13 @@ class PDFLoader:
                 print(f"正在处理PDF文件: {os.path.basename(file_path)}")
                 # 遍历每一页
                 for page_num, page in tqdm(enumerate(doc), total=len(doc), desc="处理PDF页面"):
+                    # print(f"page_num: {page_num}")
+                    # print(f"page: {page}")
                     # 获取页面上的所有文本和图像引用
                     # 使用 "dict" 模式获取带有更多结构信息的文本
                     page_dict = page.get_text("dict")
                     blocks = page_dict["blocks"]
-                    
+                    # print(f"blocks: {blocks}")
                     
                     # 处理每个块（文本块或图片块）
                     for block_idx, block in enumerate(blocks):
@@ -147,6 +150,7 @@ class PDFLoader:
                             try:
                                 # 获取图片信息
                                 img_index = block.get("number", 0)
+                                print(f"img_index: {img_index}")
                                 width = block.get("width", 0)
                                 height = block.get("height", 0)
                                 
@@ -234,7 +238,7 @@ class PDFLoader:
 
 if __name__ == '__main__':
     loader = PDFLoader()
-    filepath = 'data/documents/222.pdf'
+    filepath = 'C:/Users/yangt/Desktop/data/tmp.pdf'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         # if i == 1:

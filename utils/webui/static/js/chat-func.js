@@ -11,6 +11,215 @@ marked.setOptions({
 const modelSelect = document.getElementById('model-select');
 const chatMessages = document.getElementById('chat-messages');
 
+// 添加前端缓存机制 - 用于存储API响应
+const apiCache = {
+    // 缓存数据存储
+    data: {},
+    
+    // 设置缓存
+    set: function(key, value, ttl = 600) { // 默认缓存10分钟
+        this.data[key] = {
+            value: value,
+            expires: Date.now() + (ttl * 1000)
+        };
+    },
+    
+    // 获取缓存
+    get: function(key) {
+        const item = this.data[key];
+        if (!item) return null;
+        
+        // 检查是否过期
+        if (Date.now() > item.expires) {
+            delete this.data[key];
+            return null;
+        }
+        
+        return item.value;
+    },
+    
+    // 检查缓存是否存在且有效
+    has: function(key) {
+        return this.get(key) !== null;
+    },
+    
+    // 删除缓存
+    delete: function(key) {
+        delete this.data[key];
+    },
+    
+    // 清除所有缓存
+    clear: function() {
+        this.data = {};
+    }
+};
+
+// 存储最近一次查询的信息，避免重复调用API
+let lastQueryInfo = {
+    query: null,
+    referencesLoaded: false,
+    contextsLoaded: false,
+    promptGenerated: false,
+    questionsLoaded: false
+};
+
+// 根据文件扩展名获取相应的图标类
+function getFileIconClass(fileExt) {
+    let iconClass = 'fa-file-alt'; // 默认图标
+    
+    switch(fileExt.toLowerCase()) {
+        case 'pdf':
+            iconClass = 'fa-file-pdf';
+            break;
+        case 'docx':
+        case 'doc':
+            iconClass = 'fa-file-word';
+            break;
+        case 'txt':
+            iconClass = 'fa-file-alt';
+            break;
+        case 'md':
+            iconClass = 'fab fa-markdown'; 
+            break;
+        case 'csv':
+            iconClass = 'fa-file-csv';
+            break;
+        case 'html':
+            iconClass = 'fa-file-code';
+            break;
+        case 'json':
+            iconClass = 'fa-file-json';
+            break;
+        case 'jsonl':
+            iconClass = 'fa-file-jsonl';
+            break;
+    }
+    
+    return iconClass;
+}
+
+// 获取相对路径的标准化函数
+function normalizeFilePath(filePath) {
+    let relativePath = filePath.split('/').slice(-2).join('/');
+    relativePath = relativePath.replace('data\\documents\\', '');
+    relativePath = relativePath.replace('\\', '/');
+    return relativePath;
+}
+
+/**
+ * 创建并添加加载指示器
+ * @param {HTMLElement} parentElement - 要添加加载指示器的父元素
+ * @param {string} message - 加载指示器显示的消息
+ * @returns {HTMLElement} - 创建的加载指示器元素
+ */
+function createLoadingIndicator(parentElement, message = '加载中...') {
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'loading-indicator';
+    loadingIndicator.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
+    parentElement.appendChild(loadingIndicator);
+    return loadingIndicator;
+}
+
+/**
+ * 检查指定类型的容器是否已存在
+ * @param {HTMLElement} parentElement - 父元素
+ * @param {string} containerClass - 容器的CSS类名
+ * @returns {HTMLElement|null} - 已存在的容器或null
+ */
+function checkExistingContainer(parentElement, containerClass) {
+    const existingContainer = parentElement.querySelector(`.${containerClass}`);
+    if (existingContainer) {
+        // 切换显示/隐藏状态
+        existingContainer.style.display = existingContainer.style.display === 'none' ? 'block' : 'none';
+        return existingContainer;
+    }
+    return null;
+}
+
+/**
+ * 在适当位置插入容器
+ * @param {HTMLElement} parentElement - 父元素
+ * @param {HTMLElement} container - 要插入的容器
+ * @param {Array<string>} containerPriorities - 容器的优先级顺序，最高优先级在前
+ */
+function insertContainerInPosition(parentElement, container, containerPriorities = [
+    'message-actions',
+    'related-questions-container',
+    'reference-files-container',
+    'related-contexts-container',
+    'rag-prompt-container'
+]) {
+    // 找到消息操作按钮
+    const actionsDiv = parentElement.querySelector('.message-actions');
+    
+    if (actionsDiv) {
+        // 根据优先级查找已存在的容器
+        let insertAfterElement = actionsDiv;
+        
+        for (const className of containerPriorities) {
+            const existingContainer = parentElement.querySelector(`.${className}`);
+            if (existingContainer) {
+                insertAfterElement = existingContainer;
+                break;
+            }
+        }
+        
+        // 插入到找到的元素之后
+        parentElement.insertBefore(container, insertAfterElement.nextSibling);
+    } else {
+        // 如果没有找到任何参考点，直接添加到消息末尾
+        parentElement.appendChild(container);
+    }
+}
+
+/**
+ * 通用的带缓存的API请求函数
+ * @param {string} endpoint - API端点
+ * @param {Object} requestData - 请求数据
+ * @param {string} cacheKey - 缓存键
+ * @param {string} lastQueryField - lastQueryInfo中对应的字段名
+ * @param {number} cacheTTL - 缓存有效期（秒）
+ * @returns {Promise<Object>} - API响应数据
+ */
+async function fetchWithCache(endpoint, requestData, cacheKey, lastQueryField, cacheTTL = 1800) {
+    let data;
+    
+    // 检查是否可以使用缓存
+    if (lastQueryInfo.query === requestData.question && lastQueryInfo[lastQueryField]) {
+        console.log(`使用缓存的${lastQueryField}数据`);
+        data = apiCache.get(cacheKey);
+    }
+    
+    // 如果没有缓存数据，则发起API请求
+    if (!data) {
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            data = await response.json();
+            console.log(`${lastQueryField}数据:`, data);
+            
+            // 缓存成功的结果
+            if (data.status === 'success') {
+                apiCache.set(cacheKey, data, cacheTTL);
+                // 更新最近查询信息
+                lastQueryInfo.query = requestData.question;
+                lastQueryInfo[lastQueryField] = true;
+            }
+        } catch (error) {
+            console.error(`请求${lastQueryField}失败:`, error);
+            throw error;
+        }
+    }
+    
+    return data;
+}
+
 // 设置侧边栏功能
 function setupSidebar() {
     const sidebar = document.getElementById('history-sidebar');
@@ -152,14 +361,14 @@ function addMessage(content, type, chatMode = 'rag') {
         referenceFilesBtn.className = 'reference-files-btn';
         referenceFilesBtn.innerHTML = '<i class="fas fa-file-alt"></i>';
         referenceFilesBtn.title = '查看参考文件';
-        referenceFilesBtn.onclick = () => fetchReferenceFiles(content, messageDiv);
+        referenceFilesBtn.onclick = () => fetchReferenceFiles(content, messageDiv, window.currentTopk || 3);
         
         // 相关上下文按钮
         const relatedContextsBtn = document.createElement('button');
         relatedContextsBtn.className = 'related-contexts-btn';
         relatedContextsBtn.innerHTML = '<i class="fas fa-book-open"></i>';
         relatedContextsBtn.title = '查看相关上下文';
-        relatedContextsBtn.onclick = () => fetchRelatedContexts(content, messageDiv);
+        relatedContextsBtn.onclick = () => fetchRelatedContexts(content, messageDiv, window.currentTopk || 3);
         
         actionsDiv.appendChild(relatedQuestionsBtn);
         actionsDiv.appendChild(referenceFilesBtn);
@@ -819,14 +1028,14 @@ function loadChat(chatType, chatId) {
                 referenceFilesBtn.className = 'reference-files-btn';
                 referenceFilesBtn.innerHTML = '<i class="fas fa-file-alt"></i>';
                 referenceFilesBtn.title = '查看参考文件';
-                referenceFilesBtn.onclick = () => fetchReferenceFiles(msg.actualPrompt || contentDiv.textContent, messageDiv);
+                referenceFilesBtn.onclick = () => fetchReferenceFiles(msg.actualPrompt || contentDiv.textContent, messageDiv, window.currentTopk || 3);
                 
                 // 相关上下文按钮
                 const relatedContextsBtn = document.createElement('button');
                 relatedContextsBtn.className = 'related-contexts-btn';
                 relatedContextsBtn.innerHTML = '<i class="fas fa-book-open"></i>';
                 relatedContextsBtn.title = '查看相关上下文';
-                relatedContextsBtn.onclick = () => fetchRelatedContexts(msg.actualPrompt || contentDiv.textContent, messageDiv);
+                relatedContextsBtn.onclick = () => fetchRelatedContexts(msg.actualPrompt || contentDiv.textContent, messageDiv, window.currentTopk || 3);
                 
                 actionsDiv.appendChild(relatedQuestionsBtn);
                 actionsDiv.appendChild(referenceFilesBtn);
@@ -1061,86 +1270,76 @@ async function sendChatMessage({
 // 获取相关问题
 async function fetchRelatedQuestions(question, messageDiv) {
     try {
-        // 检查是否已经有相关问题容器
-        const existingContainer = messageDiv.querySelector('.related-questions-container');
+        // 检查是否已有相关问题容器
+        const existingContainer = checkExistingContainer(messageDiv, 'related-questions-container');
         if (existingContainer) {
-            existingContainer.style.display = existingContainer.style.display === 'none' ? 'block' : 'none';
             return;
         }
         
         // 创建加载指示器
-        const loadingIndicator = document.createElement('div');
-        loadingIndicator.className = 'loading-indicator';
-        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载相关问题...';
-        messageDiv.appendChild(loadingIndicator);
+        const loadingIndicator = createLoadingIndicator(messageDiv, '加载相关问题...');
         
-        // 请求相关问题
-        const response = await fetch('/api/related_questions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ question })
-        });
-        
-        const data = await response.json();
+        // 使用通用缓存获取数据
+        const data = await fetchWithCache(
+            '/api/related_questions',
+            { question },
+            `related_questions_${question}`,
+            'questionsLoaded'
+        );
         
         // 移除加载指示器
         messageDiv.removeChild(loadingIndicator);
         
-        if (data.status === 'success') {
             // 创建相关问题容器
-            const container = document.createElement('div');
-            container.className = 'related-questions-container';
-            
-            // 添加标题
-            const title = document.createElement('h4');
-            title.innerHTML = '<i class="fas fa-question-circle"></i> 相关问题';
-            container.appendChild(title);
-            
+        const { container } = createTitledContainer('related-questions-container', 'fa-question-circle', '相关问题');
+        
+        if (data.status === 'success' && data.questions && data.questions.length > 0) {
             // 创建问题列表
-            const questionsList = document.createElement('ul');
-            questionsList.className = 'related-questions-list';
+            const ul = document.createElement('ul');
+            ul.className = 'related-questions-list';
             
             data.questions.forEach(q => {
-                const questionItem = document.createElement('li');
-                questionItem.className = 'related-question-item';
-                questionItem.textContent = q;
+                const li = document.createElement('li');
+                const questionText = typeof q === 'object' ? q.question : q;
+                const similarity = typeof q === 'object' && q.similarity ? ` (相似度: ${(q.similarity * 100).toFixed(1)}%)` : '';
                 
-                // 点击问题时，将其填入输入框
-                questionItem.addEventListener('click', () => {
-                    document.getElementById('message-input').value = q;
-                    document.getElementById('message-input').focus();
-                    autoResizeTextarea();
-                    
-                    // 隐藏相关问题容器
-                    container.style.display = 'none';
+                li.innerHTML = `<a href="#" class="related-question-link">${questionText}</a>${similarity}`;
+                li.querySelector('a').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.getElementById('user-input').value = questionText;
+                    // 可选：自动提交问题
+                    // document.querySelector('.send-button').click();
                 });
                 
-                questionsList.appendChild(questionItem);
+                ul.appendChild(li);
             });
             
-            container.appendChild(questionsList);
+            container.appendChild(ul);
             
-            // 添加到消息操作按钮之后
-            const actionsDiv = messageDiv.querySelector('.message-actions');
-            if (actionsDiv) {
-                // 将相关问题容器插入到操作按钮后面
-                messageDiv.insertBefore(container, actionsDiv.nextSibling);
-            } else {
-                // 如果没有操作按钮，直接添加到消息末尾
-                messageDiv.appendChild(container);
+            // 添加时间信息（如果有提供）
+            if (data.time_info) {
+                const timeInfo = document.createElement('div');
+                timeInfo.className = 'time-info';
+                timeInfo.innerHTML = `<small>处理时间: ${(data.time_info.total * 1000).toFixed(0)}ms</small>`;
+                container.appendChild(timeInfo);
             }
         } else {
-            console.error('获取相关问题失败:', data.message);
+            // 显示未找到相关问题
+            const noQuestions = document.createElement('p');
+            noQuestions.className = 'no-results';
+            noQuestions.textContent = '未找到相关问题';
+            container.appendChild(noQuestions);
         }
+        
+        // 插入到适当位置
+        insertContainerInPosition(messageDiv, container);
     } catch (error) {
-        console.error('获取相关问题出错:', error);
+        console.error('加载相关问题出错:', error);
     }
 }
 
 // 获取参考文件
-async function fetchReferenceFiles(question, messageDiv) {
+async function fetchReferenceFiles(question, messageDiv, topk = 3) {
     try {
         // 检查是否已经有参考文件容器
         const existingContainer = messageDiv.querySelector('.reference-files-container');
@@ -1155,16 +1354,37 @@ async function fetchReferenceFiles(question, messageDiv) {
         loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载参考文件...';
         messageDiv.appendChild(loadingIndicator);
         
+        // 检查是否有缓存
+        const cacheKey = `reference_files_${question}_${topk}`;
+        let data;
+        
+        // 首先检查当前问题是否与上一次查询相同
+        if (lastQueryInfo.query === question && lastQueryInfo.referencesLoaded) {
+            console.log('使用上次查询的参考文件结果');
+            data = apiCache.get(cacheKey);
+        }
+        
+        // 如果没有缓存数据，则发起API请求
+        if (!data) {
         // 请求参考文件
         const response = await fetch('/api/reference_files', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ question })
-        });
-        
-        const data = await response.json();
+                body: JSON.stringify({ question: question, top_k: topk })
+            });
+            
+            data = await response.json();
+            
+            // 缓存结果
+            if (data.status === 'success') {
+                apiCache.set(cacheKey, data);
+                // 更新最近查询信息
+                lastQueryInfo.query = question;
+                lastQueryInfo.referencesLoaded = true;
+            }
+        }
         
         // 移除加载指示器
         messageDiv.removeChild(loadingIndicator);
@@ -1217,188 +1437,9 @@ async function fetchReferenceFiles(question, messageDiv) {
                         <span class="file-score">${(file.score * 100).toFixed(1)}%</span>
                     `;
                     
-                    // 点击文件时，预览文件
+                    // 点击文件时，预览文件 - 使用缓存机制
                     fileItem.addEventListener('click', async () => {
-                        try {
-                            const previewResponse = await fetch('/api/documents/preview', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ file_path: file.file_path })
-                            });
-                            
-                            const previewData = await previewResponse.json();
-                            
-                            if (previewData.status === 'success') {
-                                
-                                // 创建预览模态框
-                                const previewModal = document.createElement('div');
-                                previewModal.className = 'preview-modal';
-                                
-                                let previewContent = '';
-                                switch(previewData.type) {
-                                    case 'html_table':
-                                        previewContent = `
-                                            <div class="preview-modal-content csv-preview">
-                                                <span class="preview-close">&times;</span>
-                                                <h3>CSV文件预览：${file.file_path}</h3>
-                                                <div class="table-container">
-                                                    ${previewData.content}
-                                                </div>
-                                            </div>
-                                        `;
-                                        break;
-                                    case 'html':
-                                        previewContent = `
-                                            <div class="preview-modal-content rich-preview">
-                                                <span class="preview-close">&times;</span>
-                                                <h3>文档预览：${file.file_path}</h3>
-                                                <div class="preview-content">
-                                                    ${previewData.content}
-                                                </div>
-                                            </div>
-                                        `;
-                                        break;
-                                    case 'docx':
-                                        previewContent = `
-                                            <div class="preview-modal-content docx-preview">
-                                                <span class="preview-close">&times;</span>
-                                                <h3>Word文档预览：${file.file_path}</h3>
-                                                <div class="preview-content">
-                                                    <div id="docx-container-${new Date().getTime()}" class="docx-container" style="width: 100%; height: 600px; border: 1px solid #ddd; overflow: auto;"></div>
-                                                </div>
-                                            </div>
-                                        `;
-                                        break;
-                                    case 'pdf':
-                                        // 将绝对路径转换为相对路径，并将反斜杠替换为正斜杠
-                                        previewData.url = previewData.url.replace(/\\/g, '/');
-                                        previewContent = `
-                                            <div class="preview-modal-content pdf-preview">
-                                                <span class="preview-close">&times;</span>
-                                                <h3>PDF文档预览：${file.file_path}</h3>
-                                                <div class="preview-content">
-                                                    <embed src="${previewData.url}" type="application/pdf" width="100%" height="600px">
-                                                    <noembed>
-                                                        <p>
-                                                            您的浏览器不支持PDF嵌入式查看。
-                                                            <a href="${previewData.url}" target="_blank">点击此处下载PDF文件</a>
-                                                        </p>
-                                                    </noembed>
-                                                </div>
-                                            </div>
-                                        `;
-                                        break;
-                                    default:
-                                        previewContent = `
-                                            <div class="preview-modal-content text-preview">
-                                                <span class="preview-close">&times;</span>
-                                                <h3>文档预览：${file.file_path}</h3>
-                                                <pre>${previewData.content}</pre>
-                                            </div>
-                                        `;
-                                }
-                                
-                                previewModal.innerHTML = previewContent;
-                                
-                                document.body.appendChild(previewModal);
-                                
-                                // 处理DOCX文件的渲染
-                                if (previewData.type === 'docx' && previewData.data) {
-                                    try {
-                                        // 将base64数据转换为ArrayBuffer
-                                        const binaryString = atob(previewData.data);
-                                        const bytes = new Uint8Array(binaryString.length);
-                                        for (let i = 0; i < binaryString.length; i++) {
-                                            bytes[i] = binaryString.charCodeAt(i);
-                                        }
-                                        const arrayBuffer = bytes.buffer;
-                                        
-                                        // 使用docx-preview库渲染文档
-                                        const container = previewModal.querySelector('.docx-container');
-                                        if (!container) {
-                                            console.error('找不到DOCX容器元素');
-                                            return;
-                                        }
-                                        
-                                        // 检查docxPreview是否可用
-                                        if (typeof docx !== 'undefined' && docx.renderAsync) {
-                                            // 使用全局docx对象
-                                            docx.renderAsync(arrayBuffer, container, null, {
-                                                className: 'docx-rendered',
-                                                inWrapper: true,
-                                                ignoreWidth: false,
-                                                ignoreHeight: false,
-                                                ignoreFonts: false,
-                                                breakPages: true,
-                                                ignoreLastRenderedPageBreak: true,
-                                                renderHeaders: true,
-                                                renderFooters: true,
-                                                renderFootnotes: true,
-                                                renderEndnotes: true
-                                            }).then(() => {
-                                                // console.log('文档渲染成功');
-                                            }).catch(error => {
-                                                console.error('文档渲染失败:', error);
-                                                container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
-                                            });
-                                        } else if (typeof window.docxPreview !== 'undefined') {
-                                            // 尝试使用 docxPreview 对象
-                                            window.docxPreview.renderAsync(arrayBuffer, container, null, {
-                                                className: 'docx-rendered',
-                                                inWrapper: true,
-                                                ignoreWidth: false,
-                                                ignoreHeight: false,
-                                                ignoreFonts: false,
-                                                breakPages: true,
-                                                ignoreLastRenderedPageBreak: true,
-                                                renderHeaders: true,
-                                                renderFooters: true,
-                                                renderFootnotes: true,
-                                                renderEndnotes: true
-                                            }).then(() => {
-                                                // console.log('文档渲染成功');
-                                            }).catch(error => {
-                                                console.error('文档渲染失败:', error);
-                                                container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
-                                            });
-                                        } else {
-                                            // 尝试查找全局暴露的DocxJS对象
-                                            const DocxJS = window.DocxJS || window.docxjs || window.docxJS;
-                                            if (DocxJS) {
-                                                try {
-                                                    const renderer = new DocxJS.DocxRenderer();
-                                                    renderer.render(arrayBuffer, container);
-                                                    // console.log('文档渲染成功');
-                                                } catch (error) {
-                                                    console.error('文档渲染失败:', error);
-                                                    container.innerHTML = `<div class="error-message">文档渲染失败: ${error.message}</div>`;
-                                                }
-                                            } else {
-                                                console.error('找不到docx-preview库');
-                                                container.innerHTML = `<div class="error-message">找不到docx-preview库，无法渲染文档</div>`;
-                                            }
-                                        }
-                                    } catch (error) {
-                                        console.error('处理DOCX文件失败:', error);
-                                        const container = previewModal.querySelector('.docx-container');
-                                        if (container) {
-                                            container.innerHTML = `<div class="error-message">处理DOCX文件失败: ${error.message}</div>`;
-                                        }
-                                    }
-                                }
-                                
-                                // 关闭模态框
-                                previewModal.querySelector('.preview-close').addEventListener('click', () => {
-                                    document.body.removeChild(previewModal);
-                                });
-                            } else {
-                                console.error('预览文件失败:', previewData.message);
-                            }
-                        } catch (error) {
-                            console.error('预览文件时出错:', error);
-                        }
+                        await previewFile(file.file_path, fileItem);
                     });
                     
                     filesList.appendChild(fileItem);
@@ -1429,8 +1470,50 @@ async function fetchReferenceFiles(question, messageDiv) {
     }
 }
 
+// 文件预览辅助函数 - 整合了预览逻辑并添加缓存
+async function previewFile(filePath, fileItem) {
+    try {
+        // 检查是否有缓存的预览数据
+        const cacheKey = `preview_${filePath}`;
+        let previewData = apiCache.get(cacheKey);
+        
+        if (!previewData) {
+            // 创建临时加载指示器
+            const originalContent = fileItem.innerHTML;
+            fileItem.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载预览...';
+            
+            const previewResponse = await fetch('/api/documents/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ file_path: filePath })
+            });
+            
+            previewData = await previewResponse.json();
+            
+            // 恢复原始内容
+            fileItem.innerHTML = originalContent;
+            
+            // 缓存预览结果
+            if (previewData.status === 'success') {
+                apiCache.set(cacheKey, previewData, 1800); // 缓存30分钟
+            }
+        }
+        
+        if (previewData.status === 'success') {
+            // 创建预览模态框
+            showPreviewModal(previewData, filePath);
+        } else {
+            console.error('预览文件失败:', previewData.message);
+        }
+    } catch (error) {
+        console.error('预览文件时出错:', error);
+    }
+}
+
 // 获取相关上下文
-async function fetchRelatedContexts(question, messageDiv) {
+async function fetchRelatedContexts(question, messageDiv, topk = 3) {
     try {
         // 检查是否已经有相关上下文容器
         const existingContainer = messageDiv.querySelector('.related-contexts-container');
@@ -1445,17 +1528,38 @@ async function fetchRelatedContexts(question, messageDiv) {
         loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 加载相关上下文...';
         messageDiv.appendChild(loadingIndicator);
         
+        // 检查是否有缓存
+        const cacheKey = `related_contexts_${question}_${topk}`;
+        let data;
+        
+        // 首先检查当前问题是否与上一次查询相同
+        if (lastQueryInfo.query === question && lastQueryInfo.contextsLoaded) {
+            console.log('使用上次查询的相关上下文结果');
+            data = apiCache.get(cacheKey);
+        }
+        
+        // 如果没有缓存数据，则发起API请求
+        if (!data) {
         // 请求相关上下文
         const response = await fetch('/api/reference_files', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ question })
+                body: JSON.stringify({ question, top_k: topk })
         });
         
-        const data = await response.json();
+            data = await response.json();
         console.log('query related_object: \n', data);
+            
+            // 缓存结果
+            if (data.status === 'success') {
+                apiCache.set(cacheKey, data);
+                // 更新最近查询信息
+                lastQueryInfo.query = question;
+                lastQueryInfo.contextsLoaded = true;
+            }
+        }
         
         // 移除加载指示器
         messageDiv.removeChild(loadingIndicator);
@@ -1470,8 +1574,6 @@ async function fetchRelatedContexts(question, messageDiv) {
         container.appendChild(title);
         
         if (data.status === 'success' && data.reference_contents && data.reference_contents.length > 0) {
-            // console.log('data.reference_contents:', data.reference_contents);
-            
             // 创建上下文列表
             const contextsList = document.createElement('div');
             contextsList.className = 'related-contexts-list';
@@ -1555,29 +1657,84 @@ async function fetchRelatedContexts(question, messageDiv) {
                 contentArea.innerHTML = `<div class="context-preview-loading">点击查看文件内容...</div>`;
                 
                 // 点击标题栏时加载文件内容
-                titleBar.addEventListener('click', async () => {
+                titleBar.addEventListener('click', () => {
                     contextItem.classList.toggle('expanded');
                     
                     // 如果已经加载了内容，就不再重复加载
                     if (contentArea.querySelector('.context-preview-loading')) {
-                        try {
-                            // 显示正在加载
+                        loadContextContent(file.file_path, contentArea);
+                    }
+                });
+                
+                // 将标题栏和内容添加到项目中
+                contextItem.appendChild(titleBar);
+                contextItem.appendChild(contentArea);
+                
+                contextsList.appendChild(contextItem);
+            });
+            
+            container.appendChild(contextsList);
+        } else {
+            // 没有找到相关上下文时显示提示信息
+            const noContexts = document.createElement('p');
+            noContexts.className = 'no-contexts-message';
+            noContexts.textContent = '没有找到相关上下文';
+            container.appendChild(noContexts);
+        }
+        
+        // 添加到消息操作按钮之后
+        const actionsDiv = messageDiv.querySelector('.message-actions');
+        if (actionsDiv) {
+            // 确定插入位置，考虑到可能已有其他容器
+            const questionsContainer = messageDiv.querySelector('.related-questions-container');
+            const filesContainer = messageDiv.querySelector('.reference-files-container');
+            
+            if (filesContainer) {
+                messageDiv.insertBefore(container, filesContainer.nextSibling);
+            } else if (questionsContainer) {
+                messageDiv.insertBefore(container, questionsContainer.nextSibling);
+            } else {
+                messageDiv.insertBefore(container, actionsDiv.nextSibling);
+            }
+        } else {
+            // 如果没有操作按钮，直接添加到消息末尾
+            messageDiv.appendChild(container);
+        }
+    } catch (error) {
+        console.error('获取相关上下文出错:', error);
+    }
+}
+
+// 加载上下文内容 - 使用缓存加载文件内容
+async function loadContextContent(filePath, contentArea) {
+    try {
+        // 检查是否有缓存的预览数据
+        const cacheKey = `preview_${filePath}`;
+        let previewData = apiCache.get(cacheKey);
+        
+        // 显示加载中
                             contentArea.innerHTML = `<div class="context-preview-loading">加载中...</div>`;
                             
+        if (!previewData) {
                             // 请求文件预览
                             const previewResponse = await fetch('/api/documents/preview', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify({ file_path: file.file_path })
+                body: JSON.stringify({ file_path: filePath })
                             });
                             
-                            const previewData = await previewResponse.json();
+            previewData = await previewResponse.json();
                             
+            // 缓存预览结果
                             if (previewData.status === 'success') {
-                                // 提取内容，根据类型处理
+                apiCache.set(cacheKey, previewData, 1800); // 缓存30分钟
+            }
+        }
 
+        if (previewData.status === 'success') {
+            // 提取内容，根据类型处理
                                 if (previewData.type === 'pdf') {
                                     // 处理PDF URL，确保正确的路径格式
                                     previewData.url = previewData.url.replace(/\\/g, '/');
@@ -1602,14 +1759,123 @@ async function fetchRelatedContexts(question, messageDiv) {
                                     contentArea.innerHTML = previewData.content;
                                 } else if (previewData.type === 'docx' && previewData.data) {
                                     // 创建DOCX预览容器
-                                    const docxContainerId = `docx-container-${index}-${new Date().getTime()}`;
+                const docxContainerId = `docx-container-${Date.now()}`;
                                     contentArea.innerHTML = `
                                         <div id="${docxContainerId}" style="width: 100%; height: 400px; border: 1px solid #ddd; overflow: auto;"></div>
                                     `;
                                     
+                // 渲染DOCX内容
+                const container = document.getElementById(docxContainerId);
+                if (container) {
+                    renderDocxPreview(previewData.data, { querySelector: () => container });
+                }
+            } else {
+                contentArea.textContent = previewData.content;
+            }
+        } else {
+            contentArea.textContent = '无法加载文件内容';
+        }
+    } catch (error) {
+        contentArea.textContent = '加载内容时出错';
+        console.error('加载文件内容出错:', error);
+    }
+}
+
+// 清空对话
+function clearChat(pagename) {
+    showWelcomeMessage(pagename);
+}
+
+// 显示预览模态框 - 将预览逻辑提取到单独的函数
+function showPreviewModal(previewData, filePath) {
+    // 创建预览模态框
+    const previewModal = document.createElement('div');
+    previewModal.className = 'preview-modal';
+    
+    let previewContent = '';
+    switch(previewData.type) {
+        case 'html_table':
+            previewContent = `
+                <div class="preview-modal-content csv-preview">
+                    <span class="preview-close">&times;</span>
+                    <h3>CSV文件预览：${filePath}</h3>
+                    <div class="table-container">
+                        ${previewData.content}
+                    </div>
+                </div>
+            `;
+            break;
+        case 'html':
+            previewContent = `
+                <div class="preview-modal-content rich-preview">
+                    <span class="preview-close">&times;</span>
+                    <h3>文档预览：${filePath}</h3>
+                    <div class="preview-content">
+                        ${previewData.content}
+                    </div>
+                </div>
+            `;
+            break;
+        case 'docx':
+            previewContent = `
+                <div class="preview-modal-content docx-preview">
+                    <span class="preview-close">&times;</span>
+                    <h3>Word文档预览：${filePath}</h3>
+                    <div class="preview-content">
+                        <div id="docx-container-${new Date().getTime()}" class="docx-container" style="width: 100%; height: 600px; border: 1px solid #ddd; overflow: auto;"></div>
+                    </div>
+                </div>
+            `;
+            break;
+        case 'pdf':
+            // 将绝对路径转换为相对路径，并将反斜杠替换为正斜杠
+            previewData.url = previewData.url?.replace(/\\/g, '/');
+            previewContent = `
+                <div class="preview-modal-content pdf-preview">
+                    <span class="preview-close">&times;</span>
+                    <h3>PDF文档预览：${filePath}</h3>
+                    <div class="preview-content">
+                        <embed src="${previewData.url}" type="application/pdf" width="100%" height="600px">
+                        <noembed>
+                            <p>
+                                您的浏览器不支持PDF嵌入式查看。
+                                <a href="${previewData.url}" target="_blank">点击此处下载PDF文件</a>
+                            </p>
+                        </noembed>
+                    </div>
+                </div>
+            `;
+            break;
+        default:
+            previewContent = `
+                <div class="preview-modal-content text-preview">
+                    <span class="preview-close">&times;</span>
+                    <h3>文档预览：${filePath}</h3>
+                    <pre>${previewData.content}</pre>
+                </div>
+            `;
+    }
+    
+    previewModal.innerHTML = previewContent;
+    
+    document.body.appendChild(previewModal);
+    
+    // 处理DOCX文件的渲染
+    if (previewData.type === 'docx' && previewData.data) {
+        renderDocxPreview(previewData.data, previewModal);
+    }
+    
+    // 关闭模态框
+    previewModal.querySelector('.preview-close').addEventListener('click', () => {
+        document.body.removeChild(previewModal);
+    });
+}
+
+// 渲染DOCX预览
+function renderDocxPreview(base64Data, previewModal) {
                                     try {
                                         // 将base64数据转换为ArrayBuffer
-                                        const binaryString = atob(previewData.data);
+        const binaryString = atob(base64Data);
                                         const bytes = new Uint8Array(binaryString.length);
                                         for (let i = 0; i < binaryString.length; i++) {
                                             bytes[i] = binaryString.charCodeAt(i);
@@ -1617,7 +1883,7 @@ async function fetchRelatedContexts(question, messageDiv) {
                                         const arrayBuffer = bytes.buffer;
                                         
                                         // 使用docx-preview库渲染文档
-                                        const container = document.getElementById(docxContainerId);
+        const container = previewModal.querySelector('.docx-container');
                                         if (!container) {
                                             console.error('找不到DOCX容器元素');
                                             return;
@@ -1683,65 +1949,115 @@ async function fetchRelatedContexts(question, messageDiv) {
                                         }
                                     } catch (error) {
                                         console.error('处理DOCX文件失败:', error);
-                                        document.getElementById(docxContainerId).innerHTML = 
-                                            `<div class="error-message">处理DOCX文件失败: ${error.message}</div>`;
-                                    }
-                                } else {
-                                    contentArea.textContent = previewData.content;
-                                }
-                            } else {
-                                contentArea.textContent = '无法加载文件内容';
-                            }
-                        } catch (error) {
-                            contentArea.textContent = '加载内容时出错';
-                            console.error('加载文件内容出错:', error);
-                        }
-                    }
-                });
-                
-                // 将标题栏和内容添加到项目中
-                contextItem.appendChild(titleBar);
-                contextItem.appendChild(contentArea);
-                
-                contextsList.appendChild(contextItem);
-            });
-            
-            container.appendChild(contextsList);
-        } else {
-            // 没有找到相关上下文时显示提示信息
-            const noContexts = document.createElement('p');
-            noContexts.className = 'no-contexts-message';
-            noContexts.textContent = '没有找到相关上下文';
-            container.appendChild(noContexts);
-            // console.error('获取相关上下文失败:', data.message || '未找到相关上下文');
+        const container = previewModal.querySelector('.docx-container');
+        if (container) {
+            container.innerHTML = `<div class="error-message">处理DOCX文件失败: ${error.message}</div>`;
         }
-        
-        // 添加到消息操作按钮之后
-        const actionsDiv = messageDiv.querySelector('.message-actions');
-        if (actionsDiv) {
-            // 确定插入位置，考虑到可能已有其他容器
-            const questionsContainer = messageDiv.querySelector('.related-questions-container');
-            const filesContainer = messageDiv.querySelector('.reference-files-container');
-            
-            if (filesContainer) {
-                messageDiv.insertBefore(container, filesContainer.nextSibling);
-            } else if (questionsContainer) {
-                messageDiv.insertBefore(container, questionsContainer.nextSibling);
-            } else {
-                messageDiv.insertBefore(container, actionsDiv.nextSibling);
-            }
-        } else {
-            // 如果没有操作按钮，直接添加到消息末尾
-            messageDiv.appendChild(container);
-        }
-    } catch (error) {
-        console.error('获取相关上下文出错:', error);
     }
 }
 
-// 清空对话
-function clearChat(pagename) {
-    showWelcomeMessage(pagename);
+// 获取RAG提示
+async function fetchRagPrompt(question, messageDiv) {
+    try {
+        // 检查是否已有RAG提示容器
+        const existingContainer = checkExistingContainer(messageDiv, 'rag-prompt-container');
+        if (existingContainer) {
+            return;
+        }
+        
+        // 创建加载指示器
+        const loadingIndicator = createLoadingIndicator(messageDiv, '生成RAG提示中...');
+        
+        // 使用通用缓存获取数据
+        const data = await fetchWithCache(
+            '/api/get_rag_prompt',
+            { question },
+            `rag_prompt_${question}`,
+            'promptGenerated'
+        );
+        
+        // 移除加载指示器
+        messageDiv.removeChild(loadingIndicator);
+        
+        // 创建RAG提示容器
+        const { container } = createTitledContainer('rag-prompt-container', 'fa-lightbulb', 'RAG提示');
+        
+        if (data.status === 'success' && data.prompt) {
+            // 创建提示内容区
+            const promptContent = document.createElement('div');
+            promptContent.className = 'rag-prompt-content';
+            
+            // 根据是否提供formattedPrompt来决定显示方式
+            if (data.formatted_prompt) {
+                promptContent.innerHTML = data.formatted_prompt;
+        } else {
+                promptContent.textContent = data.prompt;
+            }
+            
+            container.appendChild(promptContent);
+            
+            // 添加复制按钮
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i> 复制提示';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(data.prompt)
+                    .then(() => {
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="fas fa-copy"></i> 复制提示';
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                        copyBtn.innerHTML = '<i class="fas fa-times"></i> 复制失败';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '<i class="fas fa-copy"></i> 复制提示';
+                        }, 2000);
+                    });
+            });
+            container.appendChild(copyBtn);
+            
+            // 添加时间信息（如果有提供）
+            if (data.time_info) {
+                const timeInfo = document.createElement('div');
+                timeInfo.className = 'time-info';
+                timeInfo.innerHTML = `<small>处理时间: ${(data.time_info.total * 1000).toFixed(0)}ms</small>`;
+                container.appendChild(timeInfo);
+            }
+        } else {
+            // 显示错误信息
+            const errorMsg = document.createElement('p');
+            errorMsg.className = 'error-message';
+            errorMsg.textContent = data.message || '无法生成RAG提示';
+            container.appendChild(errorMsg);
+        }
+        
+        // 插入到适当位置
+        insertContainerInPosition(messageDiv, container);
+    } catch (error) {
+        console.error('获取RAG提示出错:', error);
+    }
+}
+
+/**
+ * 创建带标题的通用容器
+ * @param {string} containerClass - 容器CSS类名
+ * @param {string} titleIcon - 标题图标的FontAwesome类名
+ * @param {string} titleText - 标题文本
+ * @returns {Object} - 包含container和titleElement的对象
+ */
+function createTitledContainer(containerClass, titleIcon, titleText) {
+    // 创建容器
+    const container = document.createElement('div');
+    container.className = containerClass;
+    
+    // 添加标题
+    const title = document.createElement('h4');
+    title.innerHTML = `<i class="fas ${titleIcon}"></i> ${titleText}`;
+    container.appendChild(title);
+    
+    return { container, titleElement: title };
 }
 
 // 导出共用函数
@@ -1768,4 +2084,13 @@ export {
     clearChat,
     setupSidebar,
     loadGlobalChatHistory,
-}; 
+    fetchRagPrompt,
+    // 新增工具函数
+    getFileIconClass,
+    normalizeFilePath,
+    createLoadingIndicator,
+    checkExistingContainer,
+    insertContainerInPosition,
+    fetchWithCache,
+    createTitledContainer
+};

@@ -4,6 +4,7 @@ from .routes.api_routes import api, rag
 from .routes.chat_routes import chat
 from utils.load_config import configs
 from utils.ocr_manager import initialize_ocr
+from utils.ppstructure_manager import initialize_ppstructure
 import os
 
 app = Flask(__name__)
@@ -11,7 +12,7 @@ CORS(app)
 
 # 初始化 OCR 引擎
 initialize_ocr()
-
+initialize_ppstructure()
 # 注册蓝图
 app.register_blueprint(api, url_prefix='/api')
 app.register_blueprint(chat, url_prefix='/chat')

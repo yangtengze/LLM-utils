@@ -73,21 +73,10 @@ function setupChunksManager() {
             
             if (data && Array.isArray(data)) {
                 documentslist.innerHTML = data.map(doc => {
-                    let relativePath = doc.file_path.split('/').slice(-2).join('/');
-                    relativePath = relativePath.replace('data\\documents\\', '');
-                    relativePath = relativePath.replace('\\', '/');
+                    let relativePath = normalizeFilePath(doc.file_path);
                     const fileExt = relativePath.split('.').pop().toLowerCase();
-                    // 根据文件类型选择不同的图标
-                    let iconClass = 'fa-file-alt';
-                    switch(fileExt) {
-                        case 'pdf': iconClass = 'fa-file-pdf'; break;
-                        case 'docx': case 'doc': iconClass = 'fa-file-word'; break;
-                        case 'txt': iconClass = 'fa-file-alt'; break;
-                        case 'md': iconClass = 'fab fa-markdown'; break;
-                        case 'csv': iconClass = 'fa-file-csv'; break;
-                        case 'html': iconClass = 'fa-file-code'; break;
-                        case 'json': iconClass = 'fa-file-json'; break;
-                    }
+                    // 使用通用函数获取文件图标
+                    const iconClass = getFileIconClass(fileExt);
                     
                     return `
                         <div class="document-item" data-path="${doc.file_path}">
@@ -409,4 +398,4 @@ function setupChunksManager() {
 }
 
 // 导入公共函数
-import { setupSidebar } from '/static/js/chat-func.js'; 
+import { setupSidebar, getFileIconClass, normalizeFilePath } from '/static/js/chat-func.js'; 

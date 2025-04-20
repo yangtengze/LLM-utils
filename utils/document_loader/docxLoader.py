@@ -5,7 +5,8 @@ import os
 import io
 import numpy as np
 from utils.load_config import configs
-from utils.ocr_manager import get_ocr_engine
+# from utils.ocr_manager import get_ocr_engine
+from utils.ppstructure_manager import get_ppstructure_engine
 from PIL import Image
 
 class DocxLoader:
@@ -21,7 +22,8 @@ class DocxLoader:
         self.chunk_size = self.config['rag']['document_loader']['chunk_size']
         self.chunk_overlap = self.config['rag']['document_loader']['chunk_overlap']
         # 使用共享的OCR引擎
-        self.ocr_engine = get_ocr_engine()
+        # self.ocr_engine = get_ocr_engine()
+        self.ppstructure_engine = get_ppstructure_engine()
 
     def load(self, file_path: str) -> List[str]:
         """
@@ -110,13 +112,13 @@ class DocxLoader:
             except KeyError:
                 # 如果找不到关系ID对应的部分，尝试使用旧方法
                 return None
-            result = self.ocr_engine.ocr(img_bytes, cls=False)
-            # print(result)
-            img_content = ''
-            for idx in range(len(result)):
-                res = result[idx]
-                for line in res:
-                    img_content += (f'{line[1][0]}') + '\n'
+            # result = self.ocr_engine.ocr(img_bytes, cls=False)
+            # # print(result)
+            # img_content = ''
+            # for idx in range(len(result)):
+            #     res = result[idx]
+            #     for line in res:
+            #         img_content += (f'{line[1][0]}') + '\n'
 
 
             # # 使用PIL打开图片
@@ -125,26 +127,26 @@ class DocxLoader:
             
             # print(f"处理图片: 位于{location}的第{img_index+1}张图片 (尺寸: {width}x{height})")
             
-            # # 转换为numpy数组供OCR处理
-            # image_array = np.array(pil_image)
+            # 转换为numpy数组供OCR处理
+            image_array = np.array(pil_image)
             
-            # # 使用OCR进行识别
-            # result = self.ocr_engine(image_array)
+            # 使用OCR进行识别
+            result = self.ppstructure_engine(image_array)
             
-            # # 处理识别结果
-            # img_content = []
-            # for item in result:
-            #     if item.get('type') == 'table':
-            #         # 处理表格
-            #         img_content.append(f"{item['res'].get('html', '')}")
-            #     else:
-            #         # 处理文本
-            #         text_content = ""
-            #         for content in item.get('res', []):
-            #             if isinstance(content, dict) and 'text' in content:
-            #                 text_content += content["text"] + " "
-            #         if text_content:
-            #             img_content.append(f"{text_content}")
+            # 处理识别结果
+            img_content = []
+            for item in result:
+                if item.get('type') == 'table':
+                    # 处理表格
+                    img_content.append(f"{item['res'].get('html', '')}")
+                else:
+                    # 处理文本
+                    text_content = ""
+                    for content in item.get('res', []):
+                        if isinstance(content, dict) and 'text' in content:
+                            text_content += content["text"] + " "
+                    if text_content:
+                        img_content.append(f"{text_content}")
             
             # 添加图片尺寸信息
             img_info = f"[图片内容 {width}x{height}]"
