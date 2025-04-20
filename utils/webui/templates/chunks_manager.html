@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}RAG Chunks Manager{% endblock %}
+
+{% block content %}
+<div class="chunks-container">
+    <div class="chunks-sidebar">
+        <div class="upload-section">
+            <h3>上传文档</h3>
+            <form id="upload-form" class="upload-form">
+                <input type="file" id="file-input" multiple accept=".txt,.pdf,.docx,.md,.csv,.html,'' " class="file-input">
+                <button type="submit" class="upload-button">
+                    <i class="fas fa-upload"></i> 上传
+                </button>
+            </form>
+        </div>
+        <div class="documents-section">
+            <h3 class="document-folder-link" style="cursor: pointer;">已加载文档->文档文件夹<-</h3>
+            <div id="documents-list" class="documents-list">
+                <!-- 文档列表将通过 JavaScript 动态加载 -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="chunks-main">
+        <div class="chunks-header">
+            <h2>RAG Chunks Manager</h2>
+            <p class="chunks-description">查看和管理文档分块</p>
+        </div>
+
+        <div class="chunks-content" id="chunks-content">
+            <div class="welcome-message">
+                <i class="fas fa-puzzle-piece"></i>
+                <h3>欢迎使用 Chunks Manager</h3>
+                <p>这是一个用于查看和管理RAG文档分块的工具。</p>
+                <p>请在左侧选择文档查看其分块内容...</p>
+            </div>
+        </div>
+        
+        <div class="chunks-controls">
+            <div class="controls-group">
+                <button class="reload-button" id="reload-chunks">
+                    <i class="fas fa-sync-alt"></i>
+                    重新加载分块
+                </button>
+                <div class="filter-container">
+                    <input type="text" id="chunk-filter" placeholder="过滤分块..." class="filter-input">
+                    <button id="clear-filter" class="clear-filter">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script type="module" src="{{ url_for('static', filename='js/chunks-manager.js') }}"></script>
+{% endblock extra_js %}
+{% endblock content %} 

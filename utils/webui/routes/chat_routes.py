@@ -17,6 +17,7 @@ def agent_chat():
     """Agent 对话页面"""
     return render_template('agent_chat.html')
 
-@chat.route('/multimodal')
-def multimodal_chat():
-    return render_template('multimodal_chat.html')
+@chat.route('/chunks-manager')
+def chunks_manager():
+    """分块管理页面"""
+    return render_template('chunks_manager.html')
