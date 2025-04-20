@@ -5,29 +5,27 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-sidebar">
-        <div class="history-section">
-            <div class="history-header">
-                <h3>历史对话</h3>
-                <button id="new-chat-btn" class="new-chat-btn">
-                    <i class="fas fa-plus"></i> 新对话
-                </button>
+        <div class="settings-section">
+            <h3>对话设置</h3>
+            <div class="setting-item">
+                <label for="topk-slider">TopK</label>
+                <div class="slider-container">
+                    <input type="range" 
+                           id="topk-slider" 
+                           min="1" 
+                           max="10" 
+                           step="1" 
+                           value="3"
+                           class="topk-slider">
+                    <span id="topk-value">3</span>
+                </div>
+                <p class="setting-description">
+                    设置返回结果数量。
+                </p>
             </div>
-            <div id="chat-history-list" class="chat-history-list">
-                <!-- 历史对话列表将通过JavaScript动态加载 -->
-            </div>
-        </div>
-        
-        <div class="upload-section">
-            <h3>上传文档</h3>
-            <form id="upload-form" class="upload-form">
-                <input type="file" id="file-input" multiple accept=".txt,.pdf,.docx,.md,.csv" class="file-input">
-                <button type="submit" class="upload-button">
-                    <i class="fas fa-upload"></i> 上传
-                </button>
-            </form>
         </div>
         <div class="documents-section">
-            <h3>已加载文档</h3>
+            <h3 class="document-folder-link" style="cursor: pointer;">预览文档->文档文件夹<-</h3>
             <div id="documents-list" class="documents-list">
                 <!-- 文档列表将通过 JavaScript 动态加载 -->
             </div>
@@ -38,6 +36,10 @@
         <div class="chat-header">
             <h2>RAG Chat</h2>
             <p class="chat-description">基于文档的智能问答系统</p>
+            <button class="new-chat-btn header-new-chat-btn" id="header-new-chat-btn">
+                <i class="fas fa-plus"></i>
+                新对话
+            </button>
         </div>
 
         <div class="chat-messages" id="chat-messages">
@@ -57,6 +59,16 @@
                     placeholder="输入您的问题..."
                     rows="3"
                 ></textarea>
+                <div class="image-preview-container" id="image-preview-container">
+                    <img id="preview-image" class="image-preview">
+                    <div class="image-preview-text">
+                        <p>图片已上传，将使用OCR提取文本</p>
+                        <p id="ocr-status">状态: 等待发送...</p>
+                    </div>
+                    <button class="remove-image-btn" id="remove-image-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
                 <button class="send-button" id="send-button">
                     <i class="fas fa-paper-plane"></i>
                     发送
@@ -67,6 +79,11 @@
                     <i class="fas fa-trash-alt"></i>
                     清空对话
                 </button>
+                <label class="tool-button" id="image-upload-btn">
+                    <i class="fas fa-image"></i>
+                    上传图片
+                    <input type="file" id="chat-image-upload" accept="image/*" style="display: none;">
+                </label>
                 <div class="model-selector">
                     <i class="fas fa-microchip"></i>
                     <select id="model-select" class="model-select">
@@ -79,230 +96,6 @@
 </div>
 
 {% block extra_js %}
-<script type="module">
-import { formatMessage, addMessage, addLoadingMessage, loadModelConfig, setupModelSwitching, autoResizeTextarea, setupInputCollapse, saveChat, loadChatHistory, loadChat, deleteChat, setupChatHistory, showWelcomeMessage } from '/static/js/chat-func.js';
-
-const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
-const chatMessages = document.getElementById('chat-messages');
-const clearButton = document.getElementById('clear-button');
-const uploadForm = document.getElementById('upload-form');
-const fileInput = document.getElementById('file-input');
-const documentsList = document.getElementById('documents-list');
-
-// 加载文档列表
-async function loadDocuments() {
-    try {
-        const response = await fetch('/api/documents');
-        const data = await response.json();
-        if (data && Array.isArray(data)) {
-            documentsList.innerHTML = data.map(doc => {
-                const relativePath = doc.file_path.split('/').slice(-2).join('/');
-                const fileExt = relativePath.split('.').pop().toLowerCase();
-                const filePaths = relativePath.split('/');
-                console.log(filePaths);
-                // 根据文件类型选择不同的图标
-                let iconClass = 'fa-file-alt';
-                switch(fileExt) {
-                    case 'pdf':
-                        iconClass = 'fa-file-pdf';
-                        break;
-                    case 'docx':
-                    case 'doc':
-                        iconClass = 'fa-file-word';
-                        break;
-                    case 'txt':
-                        iconClass = 'fa-file-alt';
-                        break;
-                    case 'md':
-                        // iconClass = 'fa-file-markdown';
-                        iconClass = 'fab fa-markdown'; 
-                        break;
-                    case 'csv':
-                        iconClass = 'fa-file-csv';
-                        break;
-                }
-                
-                return `
-                    <div class="document-item" data-path="${doc.file_path}">
-                        <i class="fas ${iconClass}"></i>
-                        <span class="document-name">${relativePath}</span>
-                    </div>
-                `;
-                // <span class="document-time">${new Date(doc.timestamp * 1000).toLocaleString()}</span>
-            }).join('');
-
-            // 添加预览事件监听到整个文档项
-            document.querySelectorAll('.document-item').forEach(documentItem => {
-                documentItem.addEventListener('click', async (e) => {
-                    const filePath = documentItem.dataset.path;
-                    
-                    try {
-                        const previewResponse = await fetch('/api/documents/preview', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ file_path: filePath })
-                        });
-                        
-                        const previewData = await previewResponse.json();
-                        
-                        if (previewData.status === 'success') {
-                            // 创建预览模态框
-                            const previewModal = document.createElement('div');
-                            previewModal.className = 'preview-modal';
-                            
-                            let previewContent = '';
-                            switch(previewData.type) {
-                                case 'html_table':
-                                    previewContent = `
-                                        <div class="preview-modal-content csv-preview">
-                                            <span class="preview-close">&times;</span>
-                                            <h3>CSV文件预览：${filePath}</h3>
-                                            <div class="table-container">
-                                                ${previewData.content}
-                                            </div>
-                                        </div>
-                                    `;
-                                    break;
-                                case 'html':
-                                    previewContent = `
-                                        <div class="preview-modal-content rich-preview">
-                                            <span class="preview-close">&times;</span>
-                                            <h3>文档预览：${filePath}</h3>
-                                            <div class="preview-content">
-                                                ${previewData.content}
-                                            </div>
-                                        </div>
-                                    `;
-                                    break;
-                                default:
-                                    previewContent = `
-                                        <div class="preview-modal-content text-preview">
-                                            <span class="preview-close">&times;</span>
-                                            <h3>文档预览：${filePath}</h3>
-                                            <pre>${previewData.content}</pre>
-                                        </div>
-                                    `;
-                            }
-                            
-                            previewModal.innerHTML = previewContent;
-                            
-                            document.body.appendChild(previewModal);
-                            
-                            // 关闭模态框
-                            previewModal.querySelector('.preview-close').addEventListener('click', () => {
-                                document.body.removeChild(previewModal);
-                            });
-                        } else {
-                            addMessage(previewData.message, 'error');
-                        }
-                    } catch (error) {
-                        console.error('预览文档失败:', error);
-                        addMessage('预览文档失败', 'error');
-                    }
-                });
-            });
-        }
-    } catch (error) {
-        console.error('加载文档失败:', error);
-        documentsList.innerHTML = '<div class="error-message">加载文档失败</div>';
-    }
-}
-
-// 上传文件
-uploadForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const files = fileInput.files;
-    if (!files.length) return;
-
-    const formData = new FormData();
-    for (let file of files) {
-        formData.append('files', file);
-    }
-
-    try {
-        const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        if (data.status === 'success') {
-            addMessage('文件上传成功！', 'system');
-            loadDocuments();  // 重新加载文档列表
-        } else {
-            addMessage('文件上传失败：' + data.message, 'error');
-        }
-    } catch (error) {
-        console.error('上传文件失败:', error);
-        addMessage('上传文件失败，请重试', 'error');
-    }
-});
-
-// 发送消息函数
-async function sendMessage() {
-    const message = messageInput.value.trim();
-    if (!message) return;
-
-    addMessage(message, 'user');
-    messageInput.value = '';
-    messageInput.style.height = 'auto';
-
-    const loadingMessage = addLoadingMessage();
-
-    try {
-        const response = await fetch('/api/chat/rag', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message })
-        });
-        
-        const data = await response.json();
-        loadingMessage.remove();
-        
-        if (data.status === 'success') {
-            // 使用流式输出            
-            addMessage(data.response, 'assistant', true, () => {
-                console.log(document.querySelectorAll('#chat-messages > div'))
-                // 渲染完成后保存对话
-                saveChat('rag', document.querySelectorAll('#chat-messages > div'));
-            });
-        } else {
-            addMessage('发送消息失败：' + data.message, 'error');
-        }
-    } catch (error) {
-        loadingMessage.remove();
-        console.error('发送消息失败:', error);
-        addMessage('发送消息失败，请重试', 'error');
-    }
-}
-
-// 清空对话
-function clearChat() {
-    showWelcomeMessage('rag');
-}
-
-// 事件监听
-sendButton.addEventListener('click', sendMessage);
-clearButton.addEventListener('click', clearChat);
-messageInput.addEventListener('input', autoResizeTextarea);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-
-// 初始化
-loadModelConfig();
-setupModelSwitching();
-loadDocuments();
-setupInputCollapse();
-setupChatHistory('rag');
-</script>
-{% endblock %}
-{% endblock %}
+<script type="module" src="{{ url_for('static', filename='js/rag-chat.js') }}"></script>
+{% endblock extra_js %}
+{% endblock content %}

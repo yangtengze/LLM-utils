@@ -16,6 +16,9 @@ if errorlevel 1 (
         call conda activate llm-utils
         echo 安装 PyTorch CUDA 版本...
         call conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
+        echo 安装 ppstructure...
+        pip install paddlepaddle-gpu -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
+        pip install paddleocr
         echo 安装其他依赖...
         pip install -r ./requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
     ) else (

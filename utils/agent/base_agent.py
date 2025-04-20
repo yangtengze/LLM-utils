@@ -106,7 +106,7 @@ class BaseAgent(ABC):
         })
         
         # 设置日志
-        self._setup_logging()
+        # self._setup_logging()
         
         # 加载已保存的状态
         self._load_initial_state()
@@ -114,23 +114,23 @@ class BaseAgent(ABC):
         # 初始化prompt模板
         self.prompt_template = self.config.get('prompt_template', self.DEFAULT_PROMPT_TEMPLATE)
     
-    def _setup_logging(self) -> None:
-        """配置日志系统"""
-        log_path = Path(self.config.get('log_path', 'logs'))
-        log_path.mkdir(parents=True, exist_ok=True)
+    # def _setup_logging(self) -> None:
+    #     """配置日志系统"""
+    #     log_path = Path(self.config.get('log_path', 'logs'))
+    #     log_path.mkdir(parents=True, exist_ok=True)
         
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(
-                    log_path / f'log-{time.strftime("%Y%m%d")}.log',
-                    encoding='utf-8'
-                ),
-                logging.StreamHandler()
-            ]
-        )
-        self.logger = logging.getLogger(self.__class__.__name__)
+    #     logging.basicConfig(
+    #         level=logging.INFO,
+    #         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    #         handlers=[
+    #             logging.FileHandler(
+    #                 log_path / f'log-{time.strftime("%Y%m%d")}.log',
+    #                 encoding='utf-8'
+    #             ),
+    #             logging.StreamHandler()
+    #         ]
+    #     )
+    #     self.logger = logging.getLogger(self.__class__.__name__)
     
     def _load_initial_state(self) -> None:
         """加载初始状态"""
@@ -160,10 +160,10 @@ class BaseAgent(ABC):
         if isinstance(tool, list):
             for t in tool:
                 self.tool_registry.register(t)
-                self.logger.info(f"Registered tool: {t.name}")
+                # self.logger.info(f"Registered tool: {t.name}")
         else:
             self.tool_registry.register(tool)
-            self.logger.info(f"Registered tool: {tool.name}")
+            # self.logger.info(f"Registered tool: {tool.name}")
     
     def use_tool(self, tool_name: str, **kwargs) -> Any:
         """
@@ -174,11 +174,11 @@ class BaseAgent(ABC):
         """
         tool = self.tool_registry.get_tool(tool_name)
         if not tool:
-            self.logger.error(f"Tool not found: {tool_name}")
+            # self.logger.error(f"Tool not found: {tool_name}")
             raise ValueError(f"Tool not found: {tool_name}")
         
         try:
-            self.logger.info(f"Using tool: {tool_name} with params: {kwargs}")
+            # self.logger.info(f"Using tool: {tool_name} with params: {kwargs}")
             result = tool.func(**kwargs)
             
             # 记录工具使用历史
@@ -193,7 +193,7 @@ class BaseAgent(ABC):
             
             return result
         except Exception as e:
-            self.logger.error(f"Tool execution failed: {str(e)}")
+            # self.logger.error(f"Tool execution failed: {str(e)}")
             # 记录失败历史
             self.add_to_history({
                 'timestamp': time.time(),
@@ -255,7 +255,7 @@ class BaseAgent(ABC):
         else:
             self.history = [h for h in self.history 
                           if h.get('timestamp', 0) >= before_timestamp]
-        self.logger.info(f"Cleared history before {before_timestamp}")
+        # self.logger.info(f"Cleared history before {before_timestamp}")
     
     def format_chat_history(self) -> str:
         """
@@ -296,7 +296,7 @@ class BaseAgent(ABC):
             if entry.get('type') == 'query':
                 entry['response'] = response
                 # 记录日志
-                self.logger.info(f"Updated response for query: {entry['content']}")
+                # self.logger.info(f"Updated response for query: {entry['content']}")
                 # 自动保存状态
                 self._auto_save_state()
                 break
@@ -318,20 +318,20 @@ class BaseAgent(ABC):
         url = f"{self.llm_config.get('endpoint', 'http://localhost:11434')}/api/generate"
         
         try:
-            self.logger.debug(f"Calling LLM with prompt: {prompt}")
+            # self.logger.debug(f"Calling LLM with prompt: {prompt}")
             response = requests.post(url, data=json.dumps(data))
             
             if response.status_code == 200:
                 result = parse_response(response, data['stream'])
-                self.logger.debug(f"LLM response: {result}")
+                # self.logger.debug(f"LLM response: {result}")
                 return result
             else:
                 error_msg = f"LLM调用失败: HTTP {response.status_code} - {response.text}"
-                self.logger.error(error_msg)
+                # self.logger.error(error_msg)
                 raise Exception(error_msg)
                 
         except Exception as e:
-            self.logger.error(f"LLM调用出错: {str(e)}")
+            # self.logger.error(f"LLM调用出错: {str(e)}")
             raise
 
     def run(self, query: str) -> str:
@@ -360,7 +360,7 @@ class BaseAgent(ABC):
             
         except Exception as e:
             error_msg = f"处理查询时出错: {str(e)}"
-            self.logger.error(error_msg)
+            # self.logger.error(error_msg)
             return error_msg
 
     def _process_tool_calls(self, response: str) -> str:
@@ -384,7 +384,7 @@ class BaseAgent(ABC):
                     params = json.loads(params_str)
                 
                 # 调用工具
-                self.logger.info(f"正在调用工具: {tool_name} 参数: {params}")
+                # self.logger.info(f"正在调用工具: {tool_name} 参数: {params}")
                 tool_result = self.use_tool(tool_name, **params)
                 
                 # 格式化工具结果
@@ -401,7 +401,7 @@ class BaseAgent(ABC):
                 
             except Exception as e:
                 error_msg = f"\n### 工具调用失败\n```\n{str(e)}\n```\n"
-                self.logger.error(f"工具 {tool_name} 调用失败: {str(e)}")
+                # self.logger.error(f"工具 {tool_name} 调用失败: {str(e)}")
                 processed_response = processed_response.replace(
                     match.group(0),
                     error_msg
@@ -418,7 +418,7 @@ class BaseAgent(ABC):
         """
         self.history = []
         self.memory = {}
-        self.logger.info("Agent state reset")
+        # self.logger.info("Agent state reset")
     
     def get_available_tools(self) -> List[Dict[str, str]]:
         """获取所有可用工具列表"""
@@ -449,26 +449,26 @@ class BaseAgent(ABC):
         if path is None:
             path = self.config.get('state_path')
             if not path:
-                self.logger.warning("No state path configured, skipping state save")
+                # self.logger.warning("No state path configured, skipping state save")
                 return
 
-        try:
-            # 确保目录存在
-            state_dir = os.path.dirname(path)
-            if not os.path.exists(state_dir):
-                os.makedirs(state_dir)
+        # try:
+        # 确保目录存在
+        state_dir = os.path.dirname(path)
+        if not os.path.exists(state_dir):
+            os.makedirs(state_dir)
 
-            # 保存状态
-            state = {
-                'history': self.history,
-                'memory': self.memory
-            }
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(state, f, ensure_ascii=False, indent=2)
+        # 保存状态
+        state = {
+            'history': self.history,
+            'memory': self.memory
+        }
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
             
-            self.logger.debug(f"State saved to {path}")
-        except Exception as e:
-            self.logger.error(f"Failed to save state: {str(e)}")
+            # self.logger.debug(f"State saved to {path}")
+        # except Exception as e:
+            # self.logger.error(f"Failed to save state: {str(e)}")
     
     def load_state(self, path: str) -> None:
         """
@@ -481,11 +481,11 @@ class BaseAgent(ABC):
                 self.history = state.get('history', [])
                 self.memory = state.get('memory', {})
         except FileNotFoundError:
-            self.logger.warning(f"State file not found: {path}")
+            # self.logger.warning(f"State file not found: {path}")
             self.history = []
             self.memory = {}
         except json.JSONDecodeError:
-            self.logger.error(f"Invalid JSON in state file: {path}")
+            # self.logger.error(f"Invalid JSON in state file: {path}")
             self.history = []
             self.memory = {}
             # 重新创建有效的状态文件

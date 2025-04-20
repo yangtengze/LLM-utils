@@ -2,18 +2,20 @@
 
 一个模块化的 LLM 工具集合，提供了文档处理、RAG、Agent 等功能。
 
-
+## 项目更新日志
 | 日期和时间       | 版本   | 更新内容                  |
 |----------------|-------|-------------------------|
 | 2025/2/20  0:08 | 0.1   | LLM-utils 上线|
 | 2025/2/22  23:48 | 0.1.1   | WebUI 优化|
 | 2025/2/27  18:41 | 0.1.2  | code 优化|
 | 2025/3/24  22:30 | 0.1.3  | rag file preview 功能|
-<<<<<<< admin
 | 2025/3/27  22:30 | 0.1.4  | 历史对话信息功能|
-=======
->>>>>>> main
-
+| 2025/4/10  22:28 | 0.1.5  | 代码可读性优化|
+| 2025/4/11  11:51 | 0.1.6  | 知识库内容修改功能 |
+| 2025/4/11  14:15 | 0.1.7  | 支持上传图片进行对话，并修复了一些bug |
+| 2025/4/11  21:05 | 0.1.8  | 优化rag系统添加reranker |
+| 2025/4/12  12:20 | 0.1.9  | rag中chunk_summary添加优化rag |
+| 2025/4/20  20:03 | 0.2  | 系统效率优化 & chunks_manager |
 
 **附上ollama快速下载 LLM-utils/download_model.ps1**
 *使用方法*
@@ -24,71 +26,127 @@
 
 This is an utils based on LLMs such as RAG、Agent tools、WebUI etc. 
 
+
 ```dir 
 LLM-UTILS/
-├── bin/
-│   ├── start-llm-utils.bat
-│   ├── start-llm-utils.sh
-│   ├── stop-llm-utils.bat
-│   └── stop-llm-utils.sh
-├── configs/
-│   └── configs.yaml
-├── data/
-│   ├── agent_state.json
-│   ├── documents/
-│   │   ├── llama2/
-│   │   │   ├──llama2.pdf
-│   │   ├── data.csv
-│   │   ├── test.txt
-│   │   ├── README.md
-│   │   ├── 1.docx
-│   │   └── tmp_store
-│   └── vec_db_store/
-│       ├── agent_state/
-│       │   └──agent_state.json
-│       ├── doc_vectors.npy
-│       └── metadata.json
-├── logs/
-│   └── log-20250218.log
-├── server/
-├── tests/
-│   ├── import_yaml.py
-│   ├── test_agent.py
-│   ├── test_raw.py
-│   └── loaders/
-│       ├── csv.py
-│       ├── pdf.py
-│       └── txt.py
-├── utils/
-│   ├── load_config.py
-│   ├── base_func/
-│   │   └── parse_response.py
-│   ├── agent/
-│   │   ├── base_agent.py
-│   │   └── tools.py
-│   ├── document_loader/
-│   │   ├── csvLoader.py
-│   │   ├── docxLoader.py
-│   │   ├── mdLoader.py
-│   │   ├── pdfLoader.py
-│   │   └── txtLoader.py
-│   ├── rag/
-│   │   └── rag.py
-│   └── webui/
-│       ├── app.py
-│       └── routes/
-│           ├── api_routes.py
-│           ├── chat_routes.py
-│           └── templates/
-│               ├── agent_chat.html
-│               ├── base.html
-│               ├── index.html
-│               ├── multimodal_chat.html
-│               ├── rag_chat.html
-│               └── raw_chat.html
-├── Dockerfile
-├── README.md
-└── requirements.txt
+│  clear_pycache.ps1
+│  Dockerfile
+│  dockerfile.backup
+│  download_model.ps1
+│  README.md
+│  requirements.txt
+│  run_webui.py
+│  
+├─.vscode
+├─bin
+│      start-llm-utils.bat
+│      start-llm-utils.sh
+│      stop-llm-utils.bat
+│      stop-llm-utils.sh
+│
+├─configs
+│      configs.yaml
+│
+├─data
+│  ├─documents
+│  │  │  1.docx
+│  │  │  222.pdf
+│  │  │  conda.txt
+│  │  │  data.csv
+│  │  │  data.txt
+│  │  │  README.md
+│  │  │  test.txt
+│  │  │  tmp_store
+│  │  │
+│  │  ├─competition_data
+│  │  │      data.html
+│  │  │
+│  │  └─llama2
+│  │          llama2.pdf
+│  │
+│  └─vec_db_store
+├─temp
+├─tests
+│  │  import_yaml.py
+│  │  test_agent.py
+│  │  test_rag.py
+│  │  test_raw.py
+│  │
+│  ├─loaders
+│  │      csv.py
+│  │      index.html
+│  │      pdf.py
+│  │      txt.py
+│  │
+│  └─test_files
+│      │  test.py
+│      │
+│      └─ppstructure
+│              1.png
+│              layout.jpg
+│
+└─utils
+    │  load_config.py
+    │  ocr_manager.py
+    │  __init__.py
+    │
+    ├─base_func
+    │      call_model.py
+    │      parse_response.py
+    │      __init__.py
+    │
+    ├─documents_preview
+    │      preview_csv.py
+    │      preview_docx.py
+    │      preview_html.py
+    │      preview_markdown.py
+    │      preview_pdf.py
+    │      __init__.py
+    │
+    ├─document_loader
+    │      csvLoader.py
+    │      docxLoader.py
+    │      htmlLoader.py
+    │      mdLoader.py
+    │      pdfLoader.py
+    │      txtLoader.py
+    │      __init__.py
+    │
+    ├─rag
+    │      rag.py
+    │      __init__.py
+    │
+    └─webui
+        │  app.py
+        │
+        ├─routes
+        │      api_routes.py
+        │      chat_routes.py
+        │      __init__.py
+        │
+        ├─static
+        │  ├─css
+        │  │      style.css
+        │  │
+        │  ├─images
+        │  │      1.jpg
+        │  │      2.jpg
+        │  │      3.jpg
+        │  │      4.jpg
+        │  │
+        │  └─js
+        │          chat-func.js
+        │          chunks-manager.js
+        │          rag-chat.js
+        │          raw-chat.js
+        │
+        └─templates
+                base.html
+                chunks_manager.html
+                index.html
+                rag_chat.html
+                raw_chat.html
+
 ```
 
 ## 功能特性
@@ -112,7 +170,7 @@ LLM-UTILS/
   - RAG 增强对话
   - Agent 对话
   - 多模态对话（持续更新中）
-- 文档上传
+  - chunks-manager 管理rag chunk模块
 
 ## 快速开始
 1. **配置**
@@ -194,12 +252,14 @@ except Exception as e:
 ### 4.2 rag 对话
 ```python
 from utils.rag.rag import Rag
+from utils.base_func import call_language_model
 # 创建 Rag
 rag = Rag()
 rag.load_documents(rag.files)
 query = "你是谁啊？你叫什么？"
 try:
-    response = rag.generate_response(query)
+    system_prompt = rag.generate_prompt(query)
+    response = call_language_model(query, system_prompt)
     print(response)
 except Exception as e:
     error_msg = f"LLM调用出错: {str(e)}"
