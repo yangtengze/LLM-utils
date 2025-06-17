@@ -63,7 +63,7 @@ class PDFLoader:
             pil_image = Image.open(io.BytesIO(image_data))
             
             # 可以选择保存图片用于调试
-            pil_image.save(f'debug_image_page{page_num}_img{img_index}.jpeg')
+            # pil_image.save(f'debug_image_page{page_num}_img{img_index}.jpeg')
             
             # 转换为numpy数组供PaddleOCR处理
             image_array = np.array(pil_image)
@@ -150,7 +150,7 @@ class PDFLoader:
                             try:
                                 # 获取图片信息
                                 img_index = block.get("number", 0)
-                                print(f"img_index: {img_index}")
+                                # print(f"img_index: {img_index}")
                                 width = block.get("width", 0)
                                 height = block.get("height", 0)
                                 
@@ -169,6 +169,7 @@ class PDFLoader:
                                     text += img_text + "\n\n"
                                 else:
                                     # 尝试通过替代方法获取图片（如果有xref的情况）
+                                    print('xref')
                                     xref = block.get("xref", 0)
                                     if xref > 0:
                                         try:
@@ -238,7 +239,7 @@ class PDFLoader:
 
 if __name__ == '__main__':
     loader = PDFLoader()
-    filepath = 'C:/Users/yangt/Desktop/data/tmp.pdf'
+    filepath = 'data/documents/实验四3 建模.pdf'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         # if i == 1:

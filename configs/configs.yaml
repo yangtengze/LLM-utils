@@ -27,7 +27,7 @@ rag:
       - docx
       - csv
     chunk_size: 1000                  # 文档分块大小（字符数）
-    chunk_overlap: 200                # 分块重叠大小（字符数）
+    chunk_overlap: 100                # 分块重叠大小（字符数）
 
   embedding_model:                    # 嵌入模型配置
     path: "D:/models/bge-large-zh-v1.5"         # HuggingFace 模型名称

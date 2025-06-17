@@ -152,7 +152,7 @@ class DocxLoader:
             img_info = f"[图片内容 {width}x{height}]"
             
             if img_content:
-                return f"{img_info}\n" + img_content
+                return f"{img_info}\n" + "\n".join(img_content)
             else:
                 return f"{img_info} [未能识别图片中的文本内容]"
             
@@ -179,31 +179,50 @@ class DocxLoader:
 
     def _split_text(self, text: str) -> List[str]:
         """
-        将文本分割成块
+        将文本分割成块，确保块之间有正确的重叠
         :param text: 输入文本
         :return: 文本块列表
         """
         # 按句子分割
         sentences = re.split(r'([。！？.!?])', text)
         sentences = [''.join(i) for i in zip(sentences[0::2], sentences[1::2] + [''])]
+        sentences = [s for s in sentences if s.strip()]  # 过滤空句子
         
         chunks = []
         current_chunk = ""
+        last_sentences = []  # 存储最近的句子用于重叠
         
         for sentence in sentences:
-            # 如果当前块加上新句子不超过块大小，直接添加
+            # 将句子添加到当前块
             if len(current_chunk) + len(sentence) <= self.chunk_size:
                 current_chunk += sentence
+                last_sentences.append(sentence)
+                
+                # 保持last_sentences只包含足够用于重叠的句子
+                while len(''.join(last_sentences)) > self.chunk_overlap * 2:
+                    last_sentences.pop(0)
             else:
-                # 保存当前块
+                # 当前块已满，保存它
                 if current_chunk:
                     chunks.append(current_chunk.strip())
                 
-                # 开始新的块，包含上一个块的结尾部分
-                if len(current_chunk) > self.chunk_overlap:
-                    current_chunk = current_chunk[-self.chunk_overlap:] + sentence
-                else:
-                    current_chunk = sentence
+                # 创建新块，包含重叠部分
+                overlap_text = ""
+                if self.chunk_overlap > 0:
+                    # 从last_sentences中构建重叠文本
+                    temp_overlap = ""
+                    for s in reversed(last_sentences):
+                        if len(temp_overlap) + len(s) <= self.chunk_overlap:
+                            temp_overlap = s + temp_overlap
+                        else:
+                            break
+                    overlap_text = temp_overlap
+                
+                # 新块以重叠文本开始
+                current_chunk = overlap_text + sentence
+                
+                # 重置last_sentences为当前重叠文本加新句子
+                last_sentences = [overlap_text, sentence] if overlap_text else [sentence]
         
         # 添加最后一个块
         if current_chunk:
@@ -214,6 +233,7 @@ class DocxLoader:
 if __name__ == '__main__':
     loader = DocxLoader()
     filepath = 'data/documents/实验四3 建模.docx'
+    # filepath = 'data/documents/1.docx'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
         print(f"Chunk {i + 1}: {(chunk)}")

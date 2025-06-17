@@ -115,90 +115,67 @@ class MDLoader:
 
     def _extract_text(self, file_path: str) -> str:
         """
-        从 Markdown 提取文本
+        从 Markdown 提取文本，保持原始格式
         :param file_path: Markdown 文件路径
         :return: 提取的文本
         """
-        try:
-            # 将 Markdown 转换为 HTML
-            html = markdown.markdown(self.raw_content, extensions=['tables', 'fenced_code'])
-            
-            # 使用 BeautifulSoup 解析 HTML
-            soup = BeautifulSoup(html, 'html.parser')
-            
-            # 提取并格式化文本
-            text = ""
-            for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'pre', 'ul', 'ol', 'table']):
-                if element.name.startswith('h'):
-                    # 处理标题
-                    level = int(element.name[1])
-                    text += '#' * level + ' ' + element.get_text().strip() + '\n\n'
-                elif element.name == 'p':
-                    # 处理段落
-                    text += element.get_text().strip() + '\n\n'
-                elif element.name == 'pre':
-                    # 处理代码块
-                    text += '```\n' + element.get_text().strip() + '\n```\n\n'
-                elif element.name in ['ul', 'ol']:
-                    # 处理列表
-                    for li in element.find_all('li'):
-                        text += '- ' + li.get_text().strip() + '\n'
-                    text += '\n'
-                elif element.name == 'table':
-                    # 处理表格
-                    rows = []
-                    for tr in element.find_all('tr'):
-                        cells = [td.get_text().strip() for td in tr.find_all(['th', 'td'])]
-                        rows.append(' | '.join(cells))
-                    text += '\n'.join(rows) + '\n\n'
-
-            return text.strip()
-            
-        except Exception as e:
-            print(f"处理 Markdown 文件时出错: {str(e)}")
-            return ""
+        # 直接使用原始内容，保留格式
+        return self.raw_content
 
     def _split_text(self, text: str) -> List[str]:
         """
-        将文本分割成块
+        将文本分割成块，尝试在语义边界处分割
         :param text: 输入文本
         :return: 文本块列表
         """
-        # 按句子分割，同时保持标题结构
         chunks = []
-        current_chunk = ""
-        current_section = ""
-        
-        # 按行分割，保持段落结构
         lines = text.split('\n')
+        current_chunk = ""
+        current_size = 0
         
-        for line in lines:
-            # 检查是否是标题行
-            if line.startswith('#'):
-                # 如果有未处理的内容，先保存
-                if current_chunk:
-                    chunks.append(current_chunk.strip())
-                    current_chunk = ""
-                current_section = line + '\n'
-                continue
-                
-            # 将当前行添加到当前块
-            new_content = current_section + line + '\n' if line.strip() else '\n'
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            line_with_newline = line + '\n'
+            line_size = len(line_with_newline)
             
-            if len(current_chunk) + len(new_content) <= self.chunk_size:
-                current_chunk += new_content
+            # 如果当前行是标题，并且当前块不为空，先保存当前块
+            if line.startswith('#') and current_chunk.strip():
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+                current_size = 0
+            
+            # 尝试添加当前行到当前块
+            if current_size + line_size <= self.chunk_size:
+                current_chunk += line_with_newline
+                current_size += line_size
+                i += 1
             else:
-                if current_chunk:
+                # 如果当前行太长，无法添加到当前块
+                if current_chunk.strip():
+                    # 保存当前块
                     chunks.append(current_chunk.strip())
-                
-                # 开始新的块，包含上一个块的结尾部分和当前部分
-                if len(current_chunk) > self.chunk_overlap:
-                    current_chunk = current_chunk[-self.chunk_overlap:] + new_content
+                    
+                    # 计算重叠部分
+                    if self.chunk_overlap > 0:
+                        # 找到最后n行作为重叠
+                        overlap_lines = current_chunk.split('\n')
+                        # 取最后几行但不超过当前块的行数
+                        overlap_count = min(3, len(overlap_lines))  # 使用固定的3行作为重叠
+                        current_chunk = '\n'.join(overlap_lines[-overlap_count:]) + '\n' if overlap_count > 0 else ""
+                        current_size = len(current_chunk)
+                    else:
+                        current_chunk = ""
+                        current_size = 0
                 else:
-                    current_chunk = current_section + new_content
+                    # 如果一行太长，强制分割
+                    chunks.append(line.strip())
+                    current_chunk = ""
+                    current_size = 0
+                    i += 1
         
         # 添加最后一个块
-        if current_chunk:
+        if current_chunk.strip():
             chunks.append(current_chunk.strip())
         
         return chunks
@@ -208,5 +185,5 @@ if __name__ == '__main__':
     filepath = 'data/documents/README.md'
     chunks = loader.load(filepath)
     for i, chunk in enumerate(chunks):
-        if i == 1:  
-            print(f"Chunk {i + 1}:\n{chunk}\n")
+        # if i == 1:  
+        print(f"Chunk {i + 1}:\n{chunk}\n")
